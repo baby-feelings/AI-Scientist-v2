@@ -1,6 +1,9 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # backend_openai.py
 
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 import json
@@ -12,8 +15,11 @@ from funcy import notnone, once, select_values
 import openai
 from rich import print
 <<<<<<< HEAD
+<<<<<<< HEAD
 # Import re for JSON extraction
 import re
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 
@@ -31,9 +37,13 @@ def get_ai_client(model: str, max_retries=2) -> openai.OpenAI:
     if model.startswith("ollama/"):
         client = openai.OpenAI(
 <<<<<<< HEAD
+<<<<<<< HEAD
             base_url="http://localhost:11434/v1",
             # Add dummy API key for Ollama as identified in the debug log 
             api_key="ollama",
+=======
+            base_url="http://localhost:11434/v1", 
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
             base_url="http://localhost:11434/v1", 
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
@@ -43,6 +53,7 @@ def get_ai_client(model: str, max_retries=2) -> openai.OpenAI:
         client = openai.OpenAI(max_retries=max_retries)
     return client
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 # Helper function to extract JSON from Ollama's text response
 def _extract_json_from_ollama(text: str) -> dict | None:
@@ -67,6 +78,8 @@ def _extract_json_from_ollama(text: str) -> dict | None:
     return None
 =======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 
 def query(
     system_message: str | None,
@@ -78,6 +91,7 @@ def query(
     filtered_kwargs: dict = select_values(notnone, model_kwargs)  # type: ignore
 
     messages = opt_messages_to_list(system_message, user_message)
+<<<<<<< HEAD
 <<<<<<< HEAD
     
     # --- Ollama: func_spec (Tools) fix [cite: 3017-3018] ---
@@ -106,6 +120,8 @@ def query(
             filtered_kwargs["tools"] = [func_spec.as_openai_tool_dict]
             filtered_kwargs["tool_choice"] = func_spec.openai_tool_choice_dict
 =======
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 
     if func_spec is not None:
         filtered_kwargs["tools"] = [func_spec.as_openai_tool_dict]
@@ -114,6 +130,9 @@ def query(
 
     if filtered_kwargs.get("model", "").startswith("ollama/"):
        filtered_kwargs["model"] = filtered_kwargs["model"].replace("ollama/", "")
+<<<<<<< HEAD
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
+=======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 
     t0 = time.time()
@@ -127,6 +146,7 @@ def query(
 
     choice = completion.choices[0]
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     # --- Ollama: Parse response fix ---
     if func_spec is None or (not is_ollama):
@@ -158,6 +178,8 @@ def query(
             raise json.JSONDecodeError(f"Ollama response was not valid JSON: {raw_output}", raw_output, 0)
     # --- End Ollama fix ---
 =======
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
     if func_spec is None:
         output = choice.message.content
     else:
@@ -175,6 +197,9 @@ def query(
                 f"Error decoding the function arguments: {choice.message.tool_calls[0].function.arguments}"
             )
             raise e
+<<<<<<< HEAD
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
+=======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 
     in_tokens = completion.usage.prompt_tokens
@@ -187,7 +212,11 @@ def query(
     }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     return output, req_time, in_tokens, out_tokens, info
+=======
+    return output, req_time, in_tokens, out_tokens, info
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
     return output, req_time, in_tokens, out_tokens, info
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce

@@ -1,5 +1,8 @@
+<<<<<<< HEAD
 # perform_ideation_temp_free.py
 
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 import argparse
 import json
 import os.path as osp
@@ -139,8 +142,12 @@ def generate_temp_free_idea(
     idea_str_archive = []
     # load ideas from file
     if reload_ideas and osp.exists(idea_fname):
+<<<<<<< HEAD
         # Add encoding="utf-8" [cite: 2986-2987]
         with open(idea_fname, "r", encoding="utf-8") as f:
+=======
+        with open(idea_fname, "r") as f:
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
             idea_str_content = json.load(f)
             for idea in idea_str_content:
                 idea_str_archive.append(json.dumps(idea))
@@ -303,7 +310,11 @@ if __name__ == "__main__":
     # Create the LLM client
     client, client_model = create_client(args.model)
 
+<<<<<<< HEAD
     with open(args.workshop_file, "r", encoding="utf-8") as f:
+=======
+    with open(args.workshop_file, "r") as f:
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
         workshop_description = f.read()
     print(f"Using workshop description from {args.workshop_file} for idea generation.")
     print(f"Workshop description:\n{workshop_description}")

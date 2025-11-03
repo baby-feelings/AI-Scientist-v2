@@ -38,7 +38,11 @@ def idea_to_markdown(data: dict, output_path: str, load_code: str) -> None:
             f.write(f"## Code To Potentially Use\n\n")
             f.write(f"Use the following code as context for your experiments:\n\n")
 <<<<<<< HEAD
+<<<<<<< HEAD
             with open(load_code, "r", encoding="utf-8") as code_file:
+=======
+            with open(load_code, "r") as code_file:
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
             with open(load_code, "r") as code_file:
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
@@ -61,8 +65,12 @@ def edit_bfts_config_file(config_path: str, idea_dir: str, idea_path: str) -> st
     run_config_path = osp.join(idea_dir, "bfts_config.yaml")
     shutil.copy(config_path, run_config_path)
 <<<<<<< HEAD
+<<<<<<< HEAD
     # Add encoding="utf-8" [cite: 2994-2995]
     with open(run_config_path, "r", encoding="utf-8") as f:
+=======
+    with open(run_config_path, "r") as f:
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
     with open(run_config_path, "r") as f:
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
@@ -81,7 +89,11 @@ def edit_bfts_config_file(config_path: str, idea_dir: str, idea_path: str) -> st
     config["log_dir"] = log_dir
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     with open(run_config_path, "w", encoding="utf-8") as f:
+=======
+    with open(run_config_path, "w") as f:
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
     with open(run_config_path, "w") as f:
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce

@@ -1,6 +1,9 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # journal.py
 
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 from __future__ import annotations
@@ -11,7 +14,10 @@ from typing import Literal, Optional, Any
 import copy
 import os
 <<<<<<< HEAD
+<<<<<<< HEAD
 import re
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 import json
@@ -50,6 +56,7 @@ node_selection_spec = FunctionSpec(
 
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 def _extract_json_from_response(text: str) -> dict | None:
     json_pattern = r"```json(.*?)```"
     matches = re.findall(json_pattern, text, re.DOTALL)
@@ -70,6 +77,8 @@ def _extract_json_from_response(text: str) -> dict | None:
 
 
 
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 @dataclass(eq=False)
@@ -460,9 +469,12 @@ class Journal:
 
         if use_val_metric_only:
 <<<<<<< HEAD
+<<<<<<< HEAD
             # Fallback to metric-based selection if only_good=False but no good nodes
             if not nodes:
                 return None
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
             return max(nodes, key=lambda n: n.metric)
@@ -512,9 +524,12 @@ class Journal:
                 model = cfg.agent.select_node.model
                 temperature = cfg.agent.select_node.temp
 <<<<<<< HEAD
+<<<<<<< HEAD
             
             # --- Ollama: query応答のパース修正 ---
             # query() は backend_openai.py の修正により dict を返すか、パース失敗時に例外を発生させる
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
             selection = query(
@@ -524,6 +539,7 @@ class Journal:
                 model=model,
                 temperature=temperature
             )
+<<<<<<< HEAD
 <<<<<<< HEAD
             
             # response_raw = query(
@@ -555,10 +571,15 @@ class Journal:
             selected_node = next(
                 (node for node in nodes if str(node.id) == selection.get("selected_id")),
 =======
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 
             # Find and return the selected node
             selected_node = next(
                 (node for node in nodes if str(node.id) == selection["selected_id"]),
+<<<<<<< HEAD
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
+=======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
                 None,
             )
@@ -567,6 +588,7 @@ class Journal:
                     f"Selected node {selected_node.id} as best implementation"
                 )
 <<<<<<< HEAD
+<<<<<<< HEAD
                 logger.warning(f"Reasoning: {selection.get('reasoning')}")
                 return selected_node
             else:
@@ -574,10 +596,15 @@ class Journal:
                 if not nodes:
                     return None
 =======
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
                 logger.warning(f"Reasoning: {selection['reasoning']}")
                 return selected_node
             else:
                 logger.warning("Falling back to metric-based selection")
+<<<<<<< HEAD
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
+=======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
                 return max(nodes, key=lambda n: n.metric)
 
@@ -585,10 +612,14 @@ class Journal:
             logger.error(f"Error in LLM selection process: {e}")
             logger.warning("Falling back to metric-based selection")
 <<<<<<< HEAD
+<<<<<<< HEAD
             if not nodes:
                 return None
             return max(nodes, key=lambda n: n.metric)
         
+=======
+            return max(nodes, key=lambda n: n.metric)
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
             return max(nodes, key=lambda n: n.metric)
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce

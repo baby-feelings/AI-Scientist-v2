@@ -1,12 +1,15 @@
 from . import backend_anthropic, backend_openai
 from .utils import FunctionSpec, OutputType, PromptType, compile_prompt_to_md
 <<<<<<< HEAD
+<<<<<<< HEAD
 import json
 import logging
 from ...llm import extract_json_between_markers
 logger = logging.getLogger("ai-scientist")
 
 
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 =======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 
@@ -56,6 +59,7 @@ def query(
     }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     # --- 修正開始 ---
     is_ollama = model.startswith("ollama/")
     ollama_func_spec_used = False # Ollama + func_spec が使われたかどうかのフラグ
@@ -91,6 +95,8 @@ def query(
         func_spec = None # backend_openai.py に func_spec を渡さないようにする
     # --- 修正終了 ---
 =======
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
     # Handle models with beta limitations
     # ref: https://platform.openai.com/docs/guides/reasoning/beta-limitations
     if model.startswith("o1"):
@@ -110,12 +116,16 @@ def query(
         model_kwargs.pop("temperature", None)
     else:
         model_kwargs["max_tokens"] = max_tokens
+<<<<<<< HEAD
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
+=======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 
     query_func = backend_anthropic.query if "claude-" in model else backend_openai.query
     output, req_time, in_tok_count, out_tok_count, info = query_func(
         system_message=compile_prompt_to_md(system_message) if system_message else None,
         user_message=compile_prompt_to_md(user_message) if user_message else None,
+<<<<<<< HEAD
 <<<<<<< HEAD
         func_spec=func_spec, # Ollamaの場合は None になっている
         **model_kwargs,
@@ -146,9 +156,14 @@ def query(
                 
     return output
 =======
+=======
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
         func_spec=func_spec,
         **model_kwargs,
     )
 
     return output
+<<<<<<< HEAD
+>>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
+=======
 >>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
