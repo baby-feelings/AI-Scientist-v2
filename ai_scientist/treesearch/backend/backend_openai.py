@@ -21,7 +21,7 @@ def get_ai_client(model: str, max_retries=2) -> openai.OpenAI:
     if model.startswith("ollama/"):
         client = openai.OpenAI(
             base_url="http://localhost:11434/v1",
-            api_key="ollama",  # <-- この行を追加
+            api_key="ollama",  # <-- 既存の修正
             max_retries=max_retries
         )
     else:
@@ -40,13 +40,27 @@ def query(
 
     messages = opt_messages_to_list(system_message, user_message)
 
-    if func_spec is not None:
-        filtered_kwargs["tools"] = [func_spec.as_openai_tool_dict]
-        # force the model to use the function
-        filtered_kwargs["tool_choice"] = func_spec.openai_tool_choice_dict
+    # --- OLLAMA FIX: START ---
+    is_ollama = filtered_kwargs.get("model", "").startswith("ollama/")
 
-    if filtered_kwargs.get("model", "").startswith("ollama/"):
+    if func_spec is not None:
+        if is_ollama:
+            # Ollamaは 'tools' と 'tool_choice' をサポートしていないため、渡さない
+            # (parallel_agent.py側で func_spec=None になっているはずだが、ここで二重に防ぐ)
+            pass
+        else:
+            # OpenAI/Anthropicの場合は従来通り設定
+            filtered_kwargs["tools"] = [func_spec.as_openai_tool_dict]
+            # force the model to use the function
+            filtered_kwargs["tool_choice"] = func_spec.openai_tool_choice_dict
+
+    if is_ollama:
        filtered_kwargs["model"] = filtered_kwargs["model"].replace("ollama/", "")
+       # Ollamaがサポートしていない引数をAPIコールから確実に削除
+       filtered_kwargs.pop("tools", None)
+       filtered_kwargs.pop("tool_choice", None)
+    # --- OLLAMA FIX: END ---
+
 
     t0 = time.time()
     completion = backoff_create(
@@ -59,8 +73,11 @@ def query(
 
     choice = completion.choices[0]
 
-    if func_spec is None:
+    # --- OLLAMA FIX: START ---
+    # Ollamaは常にテキスト応答として扱う (func_specがNoneのため)
+    if func_spec is None or is_ollama:
         output = choice.message.content
+    # --- OLLAMA FIX: END ---
     else:
         assert (
             choice.message.tool_calls

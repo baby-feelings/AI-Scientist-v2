@@ -722,7 +722,6 @@ class MinimalAgent:
                 query(
                     system_message=prompt,
                     user_message=None,
-                    func_spec=None, # <-- func_spec を削除
                     model=self.cfg.agent.feedback.model,
                     temperature=self.cfg.agent.feedback.temp,
                 ),
@@ -738,13 +737,11 @@ class MinimalAgent:
                     "summary": f"Failed to parse LLM response (JSON error). Raw response: {response_str}"
                 }
         else:
-            # OpenAI/Anthropicの場合: 従来通り func_spec を使用する
             response = cast(
                 dict,
                 query(
                     system_message=prompt,
                     user_message=None,
-                    func_spec=review_func_spec, # <-- 従来通り
                     model=self.cfg.agent.feedback.model,
                     temperature=self.cfg.agent.feedback.temp,
                 ),
@@ -968,16 +965,41 @@ class MinimalAgent:
             }
 
             try:
-                response_select_plots = cast(
-                    dict,
-                    query(
-                        system_message=prompt_select_plots,
-                        user_message=None,
-                        func_spec=plot_selection_spec,
-                        model=self.cfg.agent.feedback.model,
-                        temperature=self.cfg.agent.feedback.temp,
-                    ),
-                )
+                # --- OLLAMA FIX: START ---
+                is_ollama = self.cfg.agent.feedback.model.startswith("ollama/")
+                if is_ollama:
+                    json_schema_str = json.dumps(plot_selection_spec.json_schema, indent=2)
+                    prompt_select_plots["Instructions"] = (
+                        "You MUST respond ONLY with a valid JSON object matching the following schema. "
+                        "Do not include any other text, reasoning, or explanations before or after the JSON object.\n"
+                        f"JSON Schema:\n```json\n{json_schema_str}\n```"
+                    )
+                    response_str = cast(
+                        str,
+                        query(
+                            system_message=prompt_select_plots,
+                            user_message=None,
+                            func_spec=None, # <-- 削除
+                            model=self.cfg.agent.feedback.model,
+                            temperature=self.cfg.agent.feedback.temp,
+                        ),
+                    )
+                    response_select_plots = extract_json_between_markers(response_str)
+                    if response_select_plots is None:
+                        logger.error(f"Failed to parse JSON from Ollama plot selection. Raw: {response_str}")
+                        response_select_plots = {} # エラー時は空の辞書
+                else:
+                    response_select_plots = cast(
+                        dict,
+                        query(
+                            system_message=prompt_select_plots,
+                            user_message=None,
+                            func_spec=plot_selection_spec,
+                            model=self.cfg.agent.feedback.model,
+                            temperature=self.cfg.agent.feedback.temp,
+                        ),
+                    )
+                # --- OLLAMA FIX: END ---
 
                 print(f"[cyan]Plot selection response:[/cyan] {response_select_plots}")
                 # Extract the plot paths list
@@ -1046,16 +1068,46 @@ class MinimalAgent:
             for plot_path in selected_plots
         ]
 
-        response = cast(
-            dict,
-            query(
-                system_message=None,
-                user_message=user_message,
-                func_spec=vlm_feedback_spec,
-                model=self.cfg.agent.vlm_feedback.model,
-                temperature=self.cfg.agent.vlm_feedback.temp,
-            ),
-        )
+        # --- OLLAMA FIX: START ---
+        is_ollama_vlm = self.cfg.agent.vlm_feedback.model.startswith("ollama/")
+        if is_ollama_vlm:
+            json_schema_str = json.dumps(vlm_feedback_spec.json_schema, indent=2)
+            json_instruction = (
+                "\n\nIMPORTANT: You MUST respond ONLY with a valid JSON object matching the following schema. "
+                "Do not include any other text, reasoning, or explanations before or after the JSON object.\n"
+                f"JSON Schema:\n```json\n{json_schema_str}\n```"
+            )
+            # 最後のテキストメッセージにJSON指示を追加
+            user_message[0]["text"] += json_instruction
+
+            response_str = cast(
+                str,
+                query(
+                    system_message=None,
+                    user_message=user_message,
+                    func_spec=None, # <-- 削除
+                    model=self.cfg.agent.vlm_feedback.model,
+                    temperature=self.cfg.agent.vlm_feedback.temp,
+                ),
+            )
+            response = extract_json_between_markers(response_str)
+            if response is None:
+                logger.error(f"Failed to parse JSON from VLM Ollama. Raw: {response_str}")
+                response = {"valid_plots_received": False, "plot_analyses": [], "vlm_feedback_summary": "Failed to parse VLM response."} # フォールバック
+        else:
+            response = cast(
+                dict,
+                query(
+                    system_message=None,
+                    user_message=user_message,
+                    func_spec=vlm_feedback_spec,
+                    model=self.cfg.agent.vlm_feedback.model,
+                    temperature=self.cfg.agent.vlm_feedback.temp,
+                ),
+            )
+        # --- OLLAMA FIX: END ---
+
+
         print(
             f"[cyan]VLM response from {self.cfg.agent.vlm_feedback.model}:[/cyan] {response}"
         )
@@ -1097,37 +1149,66 @@ class MinimalAgent:
             ),
         }
 
-        return cast(
-            dict,
-            query(
-                system_message=summary_prompt,
-                user_message=None,
-                func_spec={
-                    "name": "summarize_experiment",
-                    "description": "Summarize experimental findings",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "findings": {
-                                "type": "string",
-                                "description": "Key findings and results",
-                            },
-                            "significance": {
-                                "type": "string",
-                                "description": "Why these results matter",
-                            },
-                            "next_steps": {
-                                "type": "string",
-                                "description": "Suggested improvements or next experiments",
-                            },
-                        },
-                        "required": ["findings", "significance"],
+        # --- OLLAMA FIX: START ---
+        # 元のfunc_specをスキーマとして定義
+        summary_func_spec_schema = {
+            "name": "summarize_experiment",
+            "description": "Summarize experimental findings",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "findings": {
+                        "type": "string",
+                        "description": "Key findings and results",
+                    },
+                    "significance": {
+                        "type": "string",
+                        "description": "Why these results matter",
+                    },
+                    "next_steps": {
+                        "type": "string",
+                        "description": "Suggested improvements or next experiments",
                     },
                 },
-                model=self.cfg.agent.feedback.model,
-                temperature=self.cfg.agent.feedback.temp,
-            ),
-        )
+                "required": ["findings", "significance"],
+            },
+        }
+
+        is_ollama = self.cfg.agent.feedback.model.startswith("ollama/")
+        if is_ollama:
+            json_schema_str = json.dumps(summary_func_spec_schema["parameters"], indent=2)
+            summary_prompt["Instructions"] = (
+                "You MUST respond ONLY with a valid JSON object matching the following schema. "
+                "Do not include any other text, reasoning, or explanations before or after the JSON object.\n"
+                f"JSON Schema:\n```json\n{json_schema_str}\n```"
+            )
+            response_str = cast(
+                str,
+                query(
+                    system_message=summary_prompt,
+                    user_message=None,
+                    func_spec=None, # <-- 削除
+                    model=self.cfg.agent.feedback.model,
+                    temperature=self.cfg.agent.feedback.temp,
+                ),
+            )
+            response = extract_json_between_markers(response_str)
+            if response is None:
+                logger.error(f"Failed to parse JSON from Ollama node summary. Raw: {response_str}")
+                response = {"findings": "Error parsing summary.", "significance": "Error."} # フォールバック
+            return response
+        else:
+            return cast(
+                dict,
+                query(
+                    system_message=summary_prompt,
+                    user_message=None,
+                    func_spec=summary_func_spec_schema, # <-- 従来通り
+                    model=self.cfg.agent.feedback.model,
+                    temperature=self.cfg.agent.feedback.temp,
+                ),
+            )
+        # --- OLLAMA FIX: END ---
 
 
 class GPUManager:
@@ -1658,16 +1739,45 @@ class ParallelAgent:
                             f"[blue]Metrics Parsing Execution Result:\n[/blue] {metrics_exec_result}"
                         )
 
-                        metrics_response = cast(
-                            dict,
-                            query(
-                                system_message=metrics_prompt,
-                                user_message=None,
-                                func_spec=metric_parse_spec,
-                                model=cfg.agent.feedback.model,
-                                temperature=cfg.agent.feedback.temp,
-                            ),
-                        )
+                        # --- OLLAMA FIX: START ---
+                        # cfg はこのstatic methodに引数として渡されている
+                        is_ollama = cfg.agent.feedback.model.startswith("ollama/")
+                        if is_ollama:
+                            json_schema_str = json.dumps(metric_parse_spec.json_schema, indent=2)
+                            metrics_prompt["Instructions"] = (
+                                "You MUST respond ONLY with a valid JSON object matching the following schema. "
+                                "Do not include any other text, reasoning, or explanations before or after the JSON object.\n"
+                                f"JSON Schema:\n```json\n{json_schema_str}\n```"
+                            )
+                            response_str = cast(
+                                str,
+                                query(
+                                    system_message=metrics_prompt,
+                                    user_message=None,
+                                    func_spec=None, # <-- 削除
+                                    model=cfg.agent.feedback.model,
+                                    temperature=cfg.agent.feedback.temp,
+                                ),
+                            )
+                            metrics_response = extract_json_between_markers(response_str)
+                            if metrics_response is None:
+                                logger.error(f"Failed to parse JSON from Ollama metrics parsing. Raw: {response_str}")
+                                metrics_response = {"valid_metrics_received": False, "metric_names": []} # フォールバック
+                        else:
+                            metrics_response = cast(
+                                dict,
+                                query(
+                                    system_message=metrics_prompt,
+                                    user_message=None,
+                                    func_spec=metric_parse_spec,
+                                    model=cfg.agent.feedback.model,
+                                    temperature=cfg.agent.feedback.temp,
+                                ),
+                            )
+                        # --- OLLAMA FIX: END ---
+
+
+
                         # If there is any None value, child_node.metric should be set to WorstMetricValue.
                         # This is achieved by raising an error in the MetricValue class,
                         # which sets child_node.is_buggy to True, thereby
