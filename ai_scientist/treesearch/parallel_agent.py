@@ -334,10 +334,11 @@ class MinimalAgent:
                 "  - Compare these samples with ground truth data using appropriate visualizations",
                 "  - When saving plots, always use the 'working_dir' variable that will be defined at the start of the script",
                 "  - Make sure to give each figure a unique and appropriate name based on the dataset it represents, rather than reusing the same filename.",
-                "Important code structure requirements:",
-                "  - Do NOT put any execution code inside 'if __name__ == \"__main__\":' block",
-                "  - All code should be at the global scope or in functions that are called from the global scope",
-                "  - The script should execute immediately when run, without requiring any special entry point",
+                "CRITICAL Code Structure Requirements:",
+                "  - Your code MUST be a complete, executable Python script that runs from top to bottom.",
+                "  - Do NOT just define functions and exit. If you define a function, you MUST include code at the global scope that CALLS that function to execute the task.",
+                "  - Do NOT use 'if __name__ == \"__main__\":'. All executable code must be at the global scope.",
+                "  - The script MUST define 'working_dir' and save the 'experiment_data.npy' file as instructed in 'Data saving requirements'.",
                 "The code should start with:",
                 "  import os",
                 "  working_dir = os.path.join(os.getcwd(), 'working')",
@@ -348,44 +349,32 @@ class MinimalAgent:
                 f"Be aware of the running time of the code, it should complete within {humanize.naturaldelta(self.cfg.exec.timeout)}.",
                 'You can also use the "./working" directory to store any temporary files that your code needs to create.',
                 "Data saving requirements:",
-                "- Save all plottable data (metrics, losses, predictions, etc.) as numpy arrays using np.save()",
-                "- Use the following naming convention for saved files:",
+                "- Your script MUST create a directory named 'working' using os.makedirs(working_dir, exist_ok=True)",
+                "- You MUST generate synthetic images and save them into this 'working_dir'.",
+                "- At the very end of your script, you MUST save a Python dictionary named 'experiment_data' to the file 'experiment_data.npy'.",
+                "- This dictionary MUST contain a summary of the generation, for example:",
                 "  ```python",
                 "  # At the start of your code",
+                "  import os",
+                "  import numpy as np",
+                "  working_dir = os.path.join(os.getcwd(), 'working')",
+                "  os.makedirs(working_dir, exist_ok=True)",
+                "  ",
+                "  generated_files_list = []",
+                "  # ... (Your data generation code here) ...",
+                "  # (e.g., image.save(os.path.join(working_dir, 'synth_001.png')) )",
+                "  # (e.g., generated_files_list.append('synth_001.png') )",
+                "  ",
+                "  # At the end of your code:",
                 "  experiment_data = {",
                 "      'dataset_name_1': {",
-                "          'metrics': {'train': [], 'val': []},",
-                "          'losses': {'train': [], 'val': []},",
-                "          'predictions': [],",
-                "          'ground_truth': [],",
-                "          # Add other relevant data",
-                "      },",
-                "      # Add additional datasets as needed:",
-                "      'dataset_name_2': {",
-                "          'metrics': {'train': [], 'val': []},",
-                "          'losses': {'train': [], 'val': []},",
-                "          'predictions': [],",
-                "          'ground_truth': [],",
-                "          # Add other relevant data",
-                "      },",
+                "          'generated_files': generated_files_list,",
+                "          'num_generated': len(generated_files_list)",
+                "      }",
                 "  }",
-                "  # During training/evaluation:",
-                "  experiment_data['dataset_name_1']['metrics']['train'].append(train_metric)",
+                "  np.save(os.path.join(working_dir, 'experiment_data.npy'), experiment_data)",
+                "  print(f'Successfully saved experiment_data.npy with {len(generated_files_list)} files.')",
                 "  ```",
-                "- Include timestamps or epochs with the saved metrics",
-                "- For large datasets, consider saving in chunks or using np.savez_compressed()",
-                "CRITICAL EVALUATION REQUIREMENTS - Your code MUST include ALL of these:",
-                "  1. Track and print validation loss at each epoch or at suitable intervals:",
-                "     ```python",
-                "     print(f'Epoch {{epoch}}: validation_loss = {{val_loss:.4f}}')",
-                "     ```",
-                "  2. Track and update ALL these additional metrics: "
-                + str(self.evaluation_metrics),
-                "  3. Update metrics at EACH epoch:",
-                "  4. Save ALL metrics at the end:",
-                "     ```python",
-                "     np.save(os.path.join(working_dir, 'experiment_data.npy'), experiment_data)",
-                "     ```",
             ]
         )
 
@@ -400,20 +389,22 @@ class MinimalAgent:
     def _prompt_resp_fmt(self):
         return {
             "Response format": (
-                "Your response should be a brief outline/sketch of your proposed solution in natural language (7-10 sentences), "
-                "followed by a single markdown code block (using the format ```python ... ```) which implements this solution and prints out the evaluation metric(s) if applicable. "
-                "There should be no additional headings or text in your response. Just natural language text followed by a newline and then the markdown code block. "
-                "Make sure to write concise code."
+                "Your response MUST contain two parts ONLY:"
+                "1. A brief 7-10 sentence plan in natural language."
+                "2. A single markdown code block (```python ... ```) that is a COMPLETE AND EXECUTABLE Python script."
+                "This script must be self-contained and run from top to bottom to perform the task. Do NOT just define functions without calling them. "
+                "Do not include any other text or headings."
             )
         }
 
     def _prompt_metricparse_resp_fmt(self):
         return {
             "Response format": (
-                "Your response should be a brief outline/sketch of your proposed solution in natural language (3-5 sentences), "
-                "followed by a single markdown code block (using the format ```python ... ```) which implements the full code for the metric parsing. "
-                "There should be no additional headings or text in your response. Just natural language text followed by a newline and then the markdown code block. "
-                "Your generated code should be complete and executable. "
+                "Your response MUST contain two parts ONLY:"
+                "1. A brief 7-10 sentence plan in natural language."
+                "2. A single markdown code block (```python ... ```) that is a COMPLETE AND EXECUTABLE Python script."
+                "This script must be self-contained and run from top to bottom to perform the task. Do NOT just define functions without calling them. "
+                "Do not include any other text or headings."
             )
         }
 
@@ -433,11 +424,11 @@ class MinimalAgent:
     def _prompt_hyperparam_tuning_resp_fmt(self):
         return {
             "Response format": (
-                "Your response should be a brief outline/sketch of your proposed solution in natural language (3-5 sentences), "
-                "followed by a single markdown code block (using the format ```python ... ```) which implements the full code including hyperparameter tuning. "
-                "There should be no additional headings or text in your response. Do not omit any part of the code, "
-                "Your generated code should be complete and executable."
-                "Make sure to write concise code."
+                "Your response MUST contain two parts ONLY:"
+                "1. A brief 7-10 sentence plan in natural language."
+                "2. A single markdown code block (```python ... ```) that is a COMPLETE AND EXECUTABLE Python script."
+                "This script must be self-contained and run from top to bottom to perform the task. Do NOT just define functions without calling them. "
+                "Do not include any other text or headings."
             )
         }
 
@@ -445,11 +436,11 @@ class MinimalAgent:
     def _prompt_ablation_resp_fmt(self):
         return {
             "Response format": (
-                "Your response should be a brief outline/sketch of your proposed solution in natural language (3-5 sentences), "
-                "followed by a single markdown code block (using the format ```python ... ```) which implements the full code including the ablation study. "
-                "There should be no additional headings or text in your response. Do not omit any part of the code, "
-                "Your generated code should be complete and executable."
-                "Make sure to write concise code."
+                "Your response MUST contain two parts ONLY:"
+                "1. A brief 7-10 sentence plan in natural language."
+                "2. A single markdown code block (```python ... ```) that is a COMPLETE AND EXECUTABLE Python script."
+                "This script must be self-contained and run from top to bottom to perform the task. Do NOT just define functions without calling them. "
+                "Do not include any other text or headings."
             )
         }
 
@@ -576,24 +567,32 @@ class MinimalAgent:
                 "The code should be a single-file python program that is self-contained and can be executed as-is.",
                 "No parts of the code should be skipped, don't terminate the code execution before finishing the script.",
                 "Data saving requirements:",
-                "- Save all plottable data (metrics, losses, predictions, etc.) as numpy arrays using np.save()",
-                "- Use the following naming convention for saved files:",
+                "- Your script MUST create a directory named 'working' using os.makedirs(working_dir, exist_ok=True)",
+                "- You MUST generate synthetic images and save them into this 'working_dir'.",
+                "- At the very end of your script, you MUST save a Python dictionary named 'experiment_data' to the file 'experiment_data.npy'.",
+                "- This dictionary MUST contain a summary of the generation, for example:",
                 "  ```python",
                 "  # At the start of your code",
+                "  import os",
+                "  import numpy as np",
+                "  working_dir = os.path.join(os.getcwd(), 'working')",
+                "  os.makedirs(working_dir, exist_ok=True)",
+                "  ",
+                "  generated_files_list = []",
+                "  # ... (Your data generation code here) ...",
+                "  # (e.g., image.save(os.path.join(working_dir, 'synth_001.png')) )",
+                "  # (e.g., generated_files_list.append('synth_001.png') )",
+                "  ",
+                "  # At the end of your code:",
                 "  experiment_data = {",
-                "      'hyperparam_tuning_type_1': {",
-                "          'dataset_name_1': {",
-                "              'metrics': {'train': [], 'val': []},",
-                "              'losses': {'train': [], 'val': []},",
-                "              'predictions': [],",
-                "              'ground_truth': [],",
-                "              # Add other relevant data",
-                "          },",
-                "          # Add additional datasets as needed:",
-                "      },",
-                "      # Add additional hyperparam tuning types as needed",
+                "      'dataset_name_1': {",
+                "          'generated_files': generated_files_list,",
+                "          'num_generated': len(generated_files_list)",
+                "      }",
                 "  }",
-                "Make sure to use a filename 'experiment_data.npy' to save the data. Do not use any other filename.",
+                "  np.save(os.path.join(working_dir, 'experiment_data.npy'), experiment_data)",
+                "  print(f'Successfully saved experiment_data.npy with {len(generated_files_list)} files.')",
+                "  ```",
             ]
         }
         prompt["Instructions"] |= self._prompt_hyperparam_tuning_resp_fmt
@@ -622,31 +621,32 @@ class MinimalAgent:
                 "The code should be a single-file python program that is self-contained and can be executed as-is.",
                 "No parts of the code should be skipped, don't terminate the code execution before finishing the script.",
                 "Data saving requirements:",
-                "- Save all plottable data (metrics, losses, predictions, etc.) as numpy arrays using np.save()",
-                "- Use the following naming convention for saved files:",
+                "- Your script MUST create a directory named 'working' using os.makedirs(working_dir, exist_ok=True)",
+                "- You MUST generate synthetic images and save them into this 'working_dir'.",
+                "- At the very end of your script, you MUST save a Python dictionary named 'experiment_data' to the file 'experiment_data.npy'.",
+                "- This dictionary MUST contain a summary of the generation, for example:",
                 "  ```python",
                 "  # At the start of your code",
+                "  import os",
+                "  import numpy as np",
+                "  working_dir = os.path.join(os.getcwd(), 'working')",
+                "  os.makedirs(working_dir, exist_ok=True)",
+                "  ",
+                "  generated_files_list = []",
+                "  # ... (Your data generation code here) ...",
+                "  # (e.g., image.save(os.path.join(working_dir, 'synth_001.png')) )",
+                "  # (e.g., generated_files_list.append('synth_001.png') )",
+                "  ",
+                "  # At the end of your code:",
                 "  experiment_data = {",
-                "      'ablation_type_1': {",
-                "          'dataset_name_1': {",
-                "              'metrics': {'train': [], 'val': []},",
-                "              'losses': {'train': [], 'val': []},",
-                "              'predictions': [],",
-                "              'ground_truth': [],",
-                "              # Add other relevant data",
-                "          },",
-                "          # Add additional datasets as needed:",
-                "          'dataset_name_2': {",
-                "              'metrics': {'train': [], 'val': []},",
-                "              'losses': {'train': [], 'val': []},",
-                "              'predictions': [],",
-                "              'ground_truth': [],",
-                "              # Add other relevant data",
-                "          },",
-                "      },",
-                "      # Add additional ablation types as needed",
+                "      'dataset_name_1': {",
+                "          'generated_files': generated_files_list,",
+                "          'num_generated': len(generated_files_list)",
+                "      }",
                 "  }",
-                "Make sure to use a filename 'experiment_data.npy' to save the data. Do not use any other filename.",
+                "  np.save(os.path.join(working_dir, 'experiment_data.npy'), experiment_data)",
+                "  print(f'Successfully saved experiment_data.npy with {len(generated_files_list)} files.')",
+                "  ```",
             ]
         }
         prompt["Instructions"] |= self._prompt_ablation_resp_fmt
@@ -1646,6 +1646,13 @@ class ParallelAgent:
 
             # Execute and parse results
             print("Running code")
+
+            # --- ここにデバッグコードを追加 ---
+            print("[DEBUG] AI-Generated Code to be Executed: ====================")
+            print(child_node.code)
+            print("=============================================================")
+            # --- デバッグコード終了 ---
+
             exec_result = process_interpreter.run(child_node.code, True)
             process_interpreter.cleanup_session()
 
