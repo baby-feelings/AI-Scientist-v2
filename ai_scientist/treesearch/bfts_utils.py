@@ -37,15 +37,7 @@ def idea_to_markdown(data: dict, output_path: str, load_code: str) -> None:
             assert os.path.exists(load_code), f"Code path at {load_code} must exist if using the 'load_code' flag. This is an optional code prompt that you may choose to include; if not, please do not set 'load_code'."
             f.write(f"## Code To Potentially Use\n\n")
             f.write(f"Use the following code as context for your experiments:\n\n")
-<<<<<<< HEAD
-<<<<<<< HEAD
-            with open(load_code, "r", encoding="utf-8") as code_file:
-=======
             with open(load_code, "r") as code_file:
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
-=======
-            with open(load_code, "r") as code_file:
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
                 code = code_file.read()
                 f.write(f"```python\n{code}\n```\n\n")
 
@@ -64,16 +56,7 @@ def edit_bfts_config_file(config_path: str, idea_dir: str, idea_path: str) -> st
     """
     run_config_path = osp.join(idea_dir, "bfts_config.yaml")
     shutil.copy(config_path, run_config_path)
-<<<<<<< HEAD
-<<<<<<< HEAD
-    # Add encoding="utf-8" [cite: 2994-2995]
-    with open(run_config_path, "r", encoding="utf-8") as f:
-=======
     with open(run_config_path, "r") as f:
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
-=======
-    with open(run_config_path, "r") as f:
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
         config = yaml.load(f, Loader=yaml.FullLoader)
     config["desc_file"] = idea_path
     config["workspace_dir"] = idea_dir
@@ -88,14 +71,6 @@ def edit_bfts_config_file(config_path: str, idea_dir: str, idea_path: str) -> st
     os.makedirs(log_dir, exist_ok=True)
     config["log_dir"] = log_dir
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    with open(run_config_path, "w", encoding="utf-8") as f:
-=======
     with open(run_config_path, "w") as f:
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
-=======
-    with open(run_config_path, "w") as f:
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
         yaml.dump(config, f)
     return run_config_path

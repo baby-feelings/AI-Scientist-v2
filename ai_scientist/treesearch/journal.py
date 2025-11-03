@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
-# journal.py
-
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 from __future__ import annotations
 import time
 import uuid
@@ -13,13 +5,6 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional, Any
 import copy
 import os
-<<<<<<< HEAD
-<<<<<<< HEAD
-import re
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 import json
 
 from dataclasses_json import DataClassJsonMixin
@@ -55,32 +40,6 @@ node_selection_spec = FunctionSpec(
 )
 
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-def _extract_json_from_response(text: str) -> dict | None:
-    json_pattern = r"```json(.*?)```"
-    matches = re.findall(json_pattern, text, re.DOTALL)
-
-    if not matches:
-        json_pattern = r"\{.*?\}"
-        matches = re.findall(json_pattern, text, re.DOTALL)
-
-    for json_string in matches:
-        json_string = json_string.strip()
-        try:
-            json_string_clean = re.sub(r"[\x00-\x1F\x7F]", "", json_string)
-            parsed_json = json.loads(json_string_clean)
-            return parsed_json
-        except json.JSONDecodeError:
-            continue
-    return None
-
-
-
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 @dataclass(eq=False)
 class Node(DataClassJsonMixin):
     """A single node in the solution tree. Contains code, execution results, and evaluation information."""
@@ -468,15 +427,6 @@ class Journal:
             nodes = self.nodes
 
         if use_val_metric_only:
-<<<<<<< HEAD
-<<<<<<< HEAD
-            # Fallback to metric-based selection if only_good=False but no good nodes
-            if not nodes:
-                return None
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
             return max(nodes, key=lambda n: n.metric)
 
         if len(nodes) == 1:
@@ -523,15 +473,6 @@ class Journal:
             else:
                 model = cfg.agent.select_node.model
                 temperature = cfg.agent.select_node.temp
-<<<<<<< HEAD
-<<<<<<< HEAD
-            
-            # --- Ollama: query応答のパース修正 ---
-            # query() は backend_openai.py の修正により dict を返すか、パース失敗時に例外を発生させる
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
             selection = query(
                 system_message=prompt,
                 user_message=None,
@@ -539,90 +480,26 @@ class Journal:
                 model=model,
                 temperature=temperature
             )
-<<<<<<< HEAD
-<<<<<<< HEAD
-            
-            # response_raw = query(
-            #     system_message=prompt,
-            #     user_message=None,
-            #     func_spec=node_selection_spec,
-            #     model=model,
-            #     temperature=temperature
-            # )
-
-            # selection = None
-            # if isinstance(response_raw, dict):
-            #     # Standard (OpenAI Tools) response
-            #     selection = response_raw
-            # elif isinstance(response_raw, str):
-            #     # Ollama (JSON string) response
-            #     selection = _extract_json_from_response(response_raw) # Use the helper
-            #     if selection is None:
-            #         logger.error(f"Failed to parse JSON from Ollama response. Raw output: {response_raw}")
-            #         raise json.JSONDecodeError(f"Ollama response was not valid JSON: {response_raw}", response_raw, 0)
-            
-            # if selection is None:
-            #      raise ValueError(f"Could not parse selection response: {response_raw}")
-            # --- End Ollama fix ---
-
-
-            # Find and return the selected node
-            # Use .get() for safe access, as Ollama might return ""
-            selected_node = next(
-                (node for node in nodes if str(node.id) == selection.get("selected_id")),
-=======
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 
             # Find and return the selected node
             selected_node = next(
                 (node for node in nodes if str(node.id) == selection["selected_id"]),
-<<<<<<< HEAD
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
                 None,
             )
             if selected_node:
                 logger.warning(
                     f"Selected node {selected_node.id} as best implementation"
                 )
-<<<<<<< HEAD
-<<<<<<< HEAD
-                logger.warning(f"Reasoning: {selection.get('reasoning')}")
-                return selected_node
-            else:
-                logger.warning("Falling back to metric-based selection (LLM selected no valid ID)")
-                if not nodes:
-                    return None
-=======
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
                 logger.warning(f"Reasoning: {selection['reasoning']}")
                 return selected_node
             else:
                 logger.warning("Falling back to metric-based selection")
-<<<<<<< HEAD
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
-=======
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
                 return max(nodes, key=lambda n: n.metric)
 
         except Exception as e:
             logger.error(f"Error in LLM selection process: {e}")
             logger.warning("Falling back to metric-based selection")
-<<<<<<< HEAD
-<<<<<<< HEAD
-            if not nodes:
-                return None
             return max(nodes, key=lambda n: n.metric)
-        
-=======
-            return max(nodes, key=lambda n: n.metric)
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
-=======
-            return max(nodes, key=lambda n: n.metric)
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
 
     def generate_summary(self, include_code: bool = False, **model_kwargs) -> str:
         """Generate a summary of the research progress using LLM, including both successes and failures."""

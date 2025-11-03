@@ -23,11 +23,7 @@ exec:
 generate_report: True
 # LLM settings for final report from journal
 report:
-<<<<<<< HEAD
   model: ollama/qwen3:8b
-=======
-  model: gpt-4o-2024-11-20
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
   temp: 1.0
 
 experiment:
@@ -53,40 +49,23 @@ agent:
     num_seeds: 3 # should be the same as num_workers if num_workers < 3. Otherwise, set it to be 3.
   # whether to instruct the agent to generate a prediction function
   expose_prediction: False
-<<<<<<< HEAD
   # whether to provide the data with a preview of the data
-=======
-  # whether to provide the agent with a preview of the data
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
   data_preview: False
 
   # LLM settings for coding
   code:
-<<<<<<< HEAD
     model: ollama/qwen2.5vl:32b
-=======
-    model: anthropic.claude-3-5-sonnet-20241022-v2:0
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
     temp: 1.0
     max_tokens: 12000
 
   # LLM settings for evaluating program output / tracebacks
   feedback:
-<<<<<<< HEAD
     model: ollama/qwen3:8b
-=======
-    model: gpt-4o-2024-11-20
-    # gpt-4o
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
     temp: 0.5
     max_tokens: 8192
 
   vlm_feedback:
-<<<<<<< HEAD
     model: ollama/z-uo/qwen2.5vl_tools:32b
-=======
-    model: gpt-4o-2024-11-20
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
     temp: 0.5
     max_tokens: null
 
@@ -98,7 +77,6 @@ agent:
   # Options for summarizing findings and selecting the best node
   # If not specified, the default behavior will be used.
 
-<<<<<<< HEAD
   summary:
     model: ollama/qwen3:8b
     temp: 0.3
@@ -106,12 +84,3 @@ agent:
   select_node:
     model: ollama/qwen3:8b
     temp: 0.3
-=======
-  # summary:
-  #   model: gpt-4o
-  #   temp: 0.3
-
-  # select_node:
-  #   model: gpt-4o
-  #   temp: 0.3
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce

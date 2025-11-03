@@ -194,11 +194,7 @@ if __name__ == "__main__":
     available_gpus = get_available_gpus()
     print(f"Using GPUs: {available_gpus}")
 
-<<<<<<< HEAD
     with open(args.load_ideas, "r", encoding="utf-8") as f:
-=======
-    with open(args.load_ideas, "r") as f:
->>>>>>> 0af221afc7282ddfc826acae6302d42711d7d4ce
         ideas = json.load(f)
         print(f"Loaded {len(ideas)} pregenerated ideas from {args.load_ideas}")
 
