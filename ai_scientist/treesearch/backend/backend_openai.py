@@ -20,7 +20,8 @@ OPENAI_TIMEOUT_EXCEPTIONS = (
 def get_ai_client(model: str, max_retries=2) -> openai.OpenAI:
     if model.startswith("ollama/"):
         client = openai.OpenAI(
-            base_url="http://localhost:11434/v1", 
+            base_url="http://localhost:11434/v1",
+            api_key="ollama",  # <-- この行を追加
             max_retries=max_retries
         )
     else:
