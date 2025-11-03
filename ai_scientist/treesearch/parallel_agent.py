@@ -22,6 +22,9 @@ from rich import print
 from pathlib import Path
 import base64
 import sys
+from ai_scientist.llm import extract_json_between_markers
+import json
+
 
 logger = logging.getLogger("ai-scientist")
 
@@ -698,16 +701,55 @@ class MinimalAgent:
             "Execution output": wrap_code(node.term_out, lang=""),
         }
 
-        response = cast(
-            dict,
-            query(
-                system_message=prompt,
-                user_message=None,
-                func_spec=review_func_spec,
-                model=self.cfg.agent.feedback.model,
-                temperature=self.cfg.agent.feedback.temp,
-            ),
-        )
+        # --- OLLAMA FIX: START  ---
+        # bfts_config.yamlで指定されたモデルがOllamaか確認
+        is_ollama = self.cfg.agent.feedback.model.startswith("ollama/")
+
+        if is_ollama:
+            # Ollamaの場合: func_specを使わず、プロンプトでJSON出力を強制する
+            
+            # review_func_specのスキーマをプロンプトに埋め込む
+            json_schema_str = json.dumps(review_func_spec.json_schema, indent=2)
+            
+            prompt["Instructions"] = (
+                "You MUST respond ONLY with a valid JSON object matching the following schema. "
+                "Do not include any other text, reasoning, or explanations before or after the JSON object.\n"
+                f"JSON Schema:\n```json\n{json_schema_str}\n```"
+            )
+            
+            response_str = cast(
+                str,
+                query(
+                    system_message=prompt,
+                    user_message=None,
+                    func_spec=None, # <-- func_spec を削除
+                    model=self.cfg.agent.feedback.model,
+                    temperature=self.cfg.agent.feedback.temp,
+                ),
+            )
+            
+            # 返ってきたJSON文字列をパースする
+            response = extract_json_between_markers(response_str)
+            if response is None:
+                logger.error(f"Failed to parse JSON from Ollama response. Raw: {response_str}")
+                # フォールバック用のエラー応答を作成
+                response = {
+                    "is_bug": True,
+                    "summary": f"Failed to parse LLM response (JSON error). Raw response: {response_str}"
+                }
+        else:
+            # OpenAI/Anthropicの場合: 従来通り func_spec を使用する
+            response = cast(
+                dict,
+                query(
+                    system_message=prompt,
+                    user_message=None,
+                    func_spec=review_func_spec, # <-- 従来通り
+                    model=self.cfg.agent.feedback.model,
+                    temperature=self.cfg.agent.feedback.temp,
+                ),
+            )
+        # --- OLLAMA FIX: END ---
 
         node.analysis = response["summary"]
         node.is_buggy = response["is_bug"] or node.exc_type is not None
