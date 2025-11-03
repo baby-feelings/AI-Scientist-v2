@@ -70,6 +70,11 @@ AVAILABLE_LLMS = [
     "ollama/deepseek-r1:32b",
     "ollama/deepseek-r1:70b",
     "ollama/deepseek-r1:671b",
+
+    # --- 軽量モデルをここに追加 ---
+    "ollama/qwen:7b",
+    "ollama/llava:7b",
+    "ollama/deepseek-coder:6.7b"
 ]
 
 
@@ -492,7 +497,7 @@ def create_client(model) -> tuple[Any, str]:
     elif model.startswith("ollama/"):
         print(f"Using Ollama with model {model}.")
         return openai.OpenAI(
-            api_key=os.environ.get("OLLAMA_API_KEY", ""),
+            api_key="ollama", # 修正点: ダミーAPIキーを追加
             base_url="http://localhost:11434/v1",
         ), model
     elif "gpt" in model:
