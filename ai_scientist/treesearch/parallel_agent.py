@@ -745,7 +745,12 @@ class MinimalAgent:
             )
             
             # 返ってきたJSON文字列をパースする
-            response = extract_json_between_markers(response_str)
+            try:
+                response = json.loads(response_str)
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse JSON from Ollama response. Raw: {response_str}")
+                response = None # Fallback
+            
             if response is None:
                 logger.error(f"Failed to parse JSON from Ollama response. Raw: {response_str}")
                 # フォールバック用のエラー応答を作成
@@ -1001,7 +1006,12 @@ class MinimalAgent:
                             temperature=self.cfg.agent.feedback.temp,
                         ),
                     )
-                    response_select_plots = extract_json_between_markers(response_str)
+                    try:
+                        response_select_plots = json.loads(response_str)
+                    except json.JSONDecodeError:
+                        logger.error(f"Failed to parse JSON from Ollama plot selection. Raw: {response_str}")
+                        response_select_plots = None # Fallback
+                    
                     if response_select_plots is None:
                         logger.error(f"Failed to parse JSON from Ollama plot selection. Raw: {response_str}")
                         response_select_plots = {} # エラー時は空の辞書
@@ -1107,7 +1117,12 @@ class MinimalAgent:
                     temperature=self.cfg.agent.vlm_feedback.temp,
                 ),
             )
-            response = extract_json_between_markers(response_str)
+            try:
+                response = json.loads(response_str)
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse JSON from VLM Ollama. Raw: {response_str}")
+                response = None # Fallback
+
             if response is None:
                 logger.error(f"Failed to parse JSON from VLM Ollama. Raw: {response_str}")
                 response = {"valid_plots_received": False, "plot_analyses": [], "vlm_feedback_summary": "Failed to parse VLM response."} # フォールバック
@@ -1209,7 +1224,12 @@ class MinimalAgent:
                     temperature=self.cfg.agent.feedback.temp,
                 ),
             )
-            response = extract_json_between_markers(response_str)
+            try:
+                response = json.loads(response_str)
+            except json.JSONDecodeError:
+                 logger.error(f"Failed to parse JSON from Ollama node summary. Raw: {response_str}")
+                 response = None # Fallback
+
             if response is None:
                 logger.error(f"Failed to parse JSON from Ollama node summary. Raw: {response_str}")
                 response = {"findings": "Error parsing summary.", "significance": "Error."} # フォールバック
@@ -1795,7 +1815,12 @@ class ParallelAgent:
                                     temperature=cfg.agent.feedback.temp,
                                 ),
                             )
-                            metrics_response = extract_json_between_markers(response_str)
+                            try:
+                                metrics_response = json.loads(response_str)
+                            except json.JSONDecodeError:
+                                logger.error(f"Failed to parse JSON from Ollama metrics parsing. Raw: {response_str}")
+                                metrics_response = None # Fallback
+
                             if metrics_response is None:
                                 logger.error(f"Failed to parse JSON from Ollama metrics parsing. Raw: {response_str}")
                                 metrics_response = {"valid_metrics_received": False, "metric_names": []} # フォールバック
