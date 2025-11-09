@@ -1,3 +1,5 @@
+# bfts_utils.py
+
 import os
 import os.path as osp
 import shutil
@@ -56,7 +58,7 @@ def edit_bfts_config_file(config_path: str, idea_dir: str, idea_path: str) -> st
     """
     run_config_path = osp.join(idea_dir, "bfts_config.yaml")
     shutil.copy(config_path, run_config_path)
-    with open(run_config_path, "r") as f:
+    with open(run_config_path, 'r', encoding="utf-8") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
     config["desc_file"] = idea_path
     config["workspace_dir"] = idea_dir
