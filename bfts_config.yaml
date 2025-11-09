@@ -1,3 +1,5 @@
+# bfts_config.yaml
+
 # path to the task data directory
 data_dir: "data"
 preprocess_data: False
@@ -35,7 +37,8 @@ debug:
 # agent hyperparams
 agent:
   type: parallel
-  num_workers: 4
+  # 8GB VRAMのためワーカー数を1に制限
+  num_workers: 1
   stages:
     stage1_max_iters: 20
     stage2_max_iters: 12
@@ -46,7 +49,8 @@ agent:
   # whether to instruct the agent to use CV (set to 1 to disable)
   k_fold_validation: 1
   multi_seed_eval:
-    num_seeds: 3 # should be the same as num_workers if num_workers < 3. Otherwise, set it to be 3.
+    # num_workersが1のため、seedも1に合わせる (ドキュメントの指示に従う)
+    num_seeds: 1 # should be the same as num_workers if num_workers < 3. Otherwise, set it to be 3.
   # whether to instruct the agent to generate a prediction function
   expose_prediction: False
   # whether to provide the data with a preview of the data
@@ -54,18 +58,23 @@ agent:
 
   # LLM settings for coding
   code:
-    model: ollama/deepseek-coder:6.7b
-    temp: 1.0
+    # コード生成タスクに8Bモデルを割り当て
+    model: ollama/qwen2.5vl:8b
+    # 温度を下げてランダム性を抑制
+    temp: 0.2
     max_tokens: 12000
 
   # LLM settings for evaluating program output / tracebacks
   feedback:
-    model: ollama/qwen:7b
-    temp: 0.5
+    # JSON応答が得意なqwen3:8bに変更
+    model: ollama/qwen3:8b
+    # 温度を下げてJSONパースの安定性を向上
+    temp: 0.3
     max_tokens: 8192
 
   vlm_feedback:
-    model: ollama/llava:7b
+    # VLMタスクに推奨の8Bモデルを割り当て
+    model: ollama/qwen2.5vl:8b
     temp: 0.5
     max_tokens: null
 
@@ -78,9 +87,11 @@ agent:
   # If not specified, the default behavior will be used.
 
   summary:
-    model: ollama/qwen:7b
+    # qwen3:8bに変更
+    model: ollama/qwen3:8b
     temp: 0.3
 
   select_node:
-    model: ollama/qwen:7b
+    # qwen3:8bに変更
+    model: ollama/qwen3:8b
     temp: 0.3
