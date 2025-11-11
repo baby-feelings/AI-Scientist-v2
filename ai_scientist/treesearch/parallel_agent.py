@@ -2236,22 +2236,44 @@ class ParallelAgent:
                     nodes_to_process.append(None)  # Back to drafting
                     continue
 
-                # Get best node from unprocessed tree if possible
-                best_node = self.journal.get_best_node(cfg=self.cfg)
+                # --- OLLAMA/BYPASS FIX (Part 5): START ---
+                # The journal.get_best_node() (LLM selection) is failing (journal.py:500).
+                # We will bypass it. Since 'good_nodes' (successful Stage 1 bypass nodes) 
+                # exist, we force the selection of the best one from that list (which is
+                # metric-based, as 'good_nodes' is sorted) instead of using the LLM.
+                
+                # Sort good_nodes by metric (highest first) just in case.
+                # The journal.good_nodes property should already be sorted, but we ensure it.
+                sorted_good_nodes = sorted(
+                    [n for n in good_nodes if n.metric is not None], 
+                    key=lambda n: n.metric, 
+                    reverse=True
+                )
+
+                if not sorted_good_nodes:
+                    logger.warning("Good nodes found, but none have valid metrics. Drafting new node.")
+                    nodes_to_process.append(None) # メトリクスを持つノードがない
+                    continue
+
+                # Select the best node based on metrics (bypassing LLM selection)
+                best_node = sorted_good_nodes[0]
+                print(f"[RADICAL FIX] Bypassing LLM selection. Force selecting best node by metric: {best_node.id} (Metric: {best_node.metric})")
+                
                 tree_root = best_node
                 while tree_root.parent:
                     tree_root = tree_root.parent
-
                 tree_id = id(tree_root)
+                
                 if tree_id not in processed_trees or len(processed_trees) >= len(
                     viable_trees
                 ):
-                    nodes_to_process.append(best_node)
+                    nodes_to_process.append(best_node) # <-- ここで [None] 以外が追加される
                     processed_trees.add(tree_id)
                     continue
+                # --- OLLAMA/BYPASS FIX (Part 5): END ---
 
                 # If we can't use best node (tree already processed), try next best nodes
-                for node in sorted(good_nodes, key=lambda n: n.metric, reverse=True):
+                for node in sorted_good_nodes: # <-- sorted_good_nodes を使うように変更
                     tree_root = node
                     while tree_root.parent:
                         tree_root = tree_root.parent
