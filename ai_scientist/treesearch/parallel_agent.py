@@ -2233,8 +2233,13 @@ class ParallelAgent:
                 print("Checking good nodes..")
                 good_nodes = self.journal.good_nodes
                 if not good_nodes:
-                    nodes_to_process.append(None)  # Back to drafting
-                    continue
+                    # 修正: ドラフト上限に達しており、改善すべき 'good_nodes' もいない。
+                    # 'None' (新規ドラフト) を追加すると無限ループになるため、
+                    # ループを抜けて、現時点のタスクリスト（空）を返す。
+                    logger.warning(
+                        "Draft limit reached, but no 'good_nodes' available to improve. Breaking task selection."
+                    )
+                    break  # while ループを抜ける
 
                 # --- OLLAMA/BYPASS FIX (Part 5): START ---
                 # The journal.get_best_node() (LLM selection) is failing (journal.py:500).
@@ -2251,9 +2256,12 @@ class ParallelAgent:
                 )
 
                 if not sorted_good_nodes:
-                    logger.warning("Good nodes found, but none have valid metrics. Drafting new node.")
-                    nodes_to_process.append(None) # メトリクスを持つノードがない
-                    continue
+                    # 修正: 'good_nodes' はいるが、有効なメトリクスを持つノードがいない。
+                    # この場合も、新規ドラフトは作成せず、ループを抜ける。
+                    logger.warning(
+                        "Good nodes found, but none have valid metrics. Breaking task selection."
+                    )
+                    break  # while ループを抜ける
 
                 # Select the best node based on metrics (bypassing LLM selection)
                 best_node = sorted_good_nodes[0]

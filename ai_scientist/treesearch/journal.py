@@ -1,3 +1,4 @@
+# journal.py
 from __future__ import annotations
 import time
 import uuid
@@ -432,7 +433,8 @@ class Journal:
         if len(nodes) == 1:
             return nodes[0]
 
-        # Create evaluation prompt for LLM
+        # LLM評価用のプロンプトを作成
+        # 修正: JSON形式での厳密な出力を要求するようにプロンプトを変更
         prompt = {
             "Introduction": (
                 "You are an experienced AI researcher evaluating different implementations "
@@ -440,31 +442,38 @@ class Journal:
                 "including performance metrics, training dynamics, generated plots quality."
             ),
             "Task": (
-                "Select the best implementation from the candidates below, considering all available evidence."
+                "Select the best implementation from the candidates below, considering all available evidence. "
                 "Avoid relying too heavily on the validation loss alone, because "
                 "it may not be directly comparable across different objective functions or training details. "
                 "If there are multiple validation losses (e.g., when evaluating multiple datasets), "
-                "consider all of them and select the implementation that performs best overall."
+                "consider all of them and select the implementation that performs best overall. "
+                "You MUST return ONLY a valid JSON object (no other text, no markdown) "
+                "in the following format: "
+                '{"selected_id": "ID_OF_BEST_NODE", "reasoning": "Your detailed reasoning..."}'
             ),
             "Candidates": "",
         }
-        # Gather info about each node
+        
+        # 各ノードの情報を収集
         for node in nodes:
             if not node.is_seed_node:
                 candidate_info = (
                     f"ID: {node.id}\n" f"Metric: {str(node.metric)}\n"
                     if node.metric
-                    else (
-                        "N/A\n" f"Training Analysis: {node.analysis}\n"
-                        if hasattr(node, "analysis")
-                        else (
-                            "N/A\n" f"VLM Feedback: {node.vlm_feedback_summary}\n"
-                            if hasattr(node, "vlm_feedback_summary")
-                            else "N/A\n"
-                        )
-                    )
+                    else "N/A\n"
                 )
-                prompt["Candidates"] += candidate_info
+                candidate_info += (
+                    f"Training Analysis: {node.analysis}\n"
+                    if hasattr(node, "analysis") and node.analysis
+                    else "N/A\n"
+                )
+                candidate_info += (
+                    f"VLM Feedback: {node.vlm_feedback_summary}\n"
+                    if hasattr(node, "vlm_feedback_summary") and node.vlm_feedback_summary
+                    else "N/A\n"
+                )
+                prompt["Candidates"] += candidate_info + "--------------------\n"
+
 
         try:
             if cfg is None or cfg.agent.get("select_node", None) is None:
@@ -473,13 +482,31 @@ class Journal:
             else:
                 model = cfg.agent.select_node.model
                 temperature = cfg.agent.select_node.temp
-            selection = query(
+            
+            # 修正: func_spec を削除し、LLMにJSON文字列を生成させる
+            raw_selection_response = query(
                 system_message=prompt,
-                user_message=None,
-                func_spec=node_selection_spec,
+                user_message="Select the best implementation and provide reasoning as a JSON object.", # ユーザーメッセージで改めてJSONを要求
+                # func_spec=node_selection_spec, # <-- 削除
                 model=model,
                 temperature=temperature
             )
+
+            # 修正: 返ってきた文字列を手動でパースする
+            try:
+                # LLMがJSON以外の余計なテキスト（"Here is the JSON:"など）を返す可能性を考慮し、
+                # 応答からJSONオブジェクト部分を抽出する
+                json_start = raw_selection_response.find('{')
+                json_end = raw_selection_response.rfind('}')
+                if json_start != -1 and json_end != -1:
+                    json_str = raw_selection_response[json_start:json_end+1]
+                    selection = json.loads(json_str)
+                else:
+                    raise json.JSONDecodeError("No JSON object found", raw_selection_response, 0)
+            except json.JSONDecodeError as json_e:
+                logger.error(f"Failed to decode JSON from LLM response: {raw_selection_response}. Error: {json_e}")
+                raise Exception("LLM response was not valid JSON.")
+
 
             # Find and return the selected node
             selected_node = next(
@@ -493,13 +520,13 @@ class Journal:
                 logger.warning(f"Reasoning: {selection['reasoning']}")
                 return selected_node
             else:
-                logger.warning("Falling back to metric-based selection")
+                logger.warning(f"LLM selected node ID {selection['selected_id']} but it was not found in candidates. Falling back to metric-based selection.")
                 return max(nodes, key=lambda n: n.metric)
 
         except Exception as e:
-            logger.error(f"Error in LLM selection process: {e}")
-            logger.warning("Falling back to metric-based selection")
-            return max(nodes, key=lambda n: n.metric)
+            logger.error(f"Error in LLM selection process: {e}") #
+            logger.warning("Falling back to metric-based selection") #
+            return max(nodes, key=lambda n: n.metric) #
 
     def generate_summary(self, include_code: bool = False, **model_kwargs) -> str:
         """Generate a summary of the research progress using LLM, including both successes and failures."""
