@@ -1995,6 +1995,15 @@ class ParallelAgent:
                             f"Error analyzing plots for node {child_node.id}: {str(e)}"
                         )
 
+                # --- ★★★ 修正コード START ★★★ ---
+                # VLM分析が実行されなかった場合 (プロットがなかった場合) で、
+                # かつコード実行自体はバグっていない (is_buggy=False) なら、
+                # is_buggy_plots も False (プロットにバグは無い) とみなす。
+                if not child_node.is_buggy and child_node.is_buggy_plots is None:
+                    child_node.is_buggy_plots = False
+                    logger.info(f"Node {child_node.id} has no plots, marking is_buggy_plots=False by default.")
+                # --- ★★★ 修正コード END ★★★ ---
+
             # Convert result node to dict
             print("Converting result to dict")
             result_data = child_node.to_dict()
