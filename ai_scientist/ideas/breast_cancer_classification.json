@@ -1,0 +1,56 @@
+[
+  {
+    "idea_number": 2,
+
+    "Name": "breast_cancer_sklearn_classification",
+    "Title": "Breast Cancer Classification using Sklearn Datasets",
+    "Short Hypothesis": "A simple ML model (Logistic Regression, RandomForest) trained on the sklearn breast cancer dataset can achieve high classification accuracy.",
+    "Related Work": "This is a standard benchmark (toy dataset) in machine learning. Baseline accuracy is known to be high, making it a good test for the agent's ability to execute code, improve models (scaling), and explore alternatives (RandomForest).",
+    "Abstract": "This research aims to test the AI Scientist's capability on a simple, self-contained task. The model will use `sklearn.datasets.load_breast_cancer()` to load data, preprocess it (scaling), and compare different classification models (LogisticRegression, RandomForest) to maximize accuracy and F1-score.",
+    "Experiments": [
+      "1. Baseline (LogisticRegression)",
+      "2. Improvement (Scaling + LogisticRegression)",
+      "3. Alternative (RandomForest)",
+      "4. Tuning (GridSearch RandomForest)"
+    ],
+    "Risk Factors and Limitations": [
+      "1. The dataset is very simple, and results may not generalize to complex, real-world problems.",
+      "2. If llama3:70b fails to follow instructions, manual prompt simplification (Radical Fix) might be needed in parallel_agent.py."
+    ],
+
+    "description": "Develop a machine learning model to classify tumors as malignant or benign using the built-in breast cancer dataset from scikit-learn. The implementation must use `sklearn.datasets.load_breast_cancer()` to load data and `sklearn.model_selection.train_test_split` for splitting. The goal is to achieve the highest possible accuracy.",
+    "data_description": "The dataset will be loaded directly from `sklearn.datasets.load_breast_cancer()`. No external CSV files are required. Features are numeric, and the target is binary (0 or 1).",
+    
+    "evaluation_metrics": [
+      {
+        "metric_name": "Accuracy",
+        "description": "The percentage of correctly classified tumors (higher is better).",
+        "maximize": true
+      },
+      {
+        "metric_name": "F1-Score",
+        "description": "The harmonic mean of precision and recall for the positive class (higher is better).",
+        "maximize": true
+      }
+    ],
+
+    "stages": [
+      {
+        "stage_name": "1_initial_implementation",
+        "description": "Implement a baseline solution using `LogisticRegression` with default parameters. Ensure data is split into training and testing sets. Report the test Accuracy and F1-Score."
+      },
+      {
+        "stage_name": "2_baseline_tuning",
+        "description": "Improve the baseline by applying `StandardScaler` to the data before fitting the `LogisticRegression` model, as logistic regression benefits from feature scaling. Report the new scores."
+      },
+      {
+        "stage_name": "3_explore_alternatives",
+        "description": "Implement and evaluate an alternative, tree-based model, such as `RandomForestClassifier`, to see if it outperforms the scaled logistic regression. Report its scores."
+      },
+      {
+        "stage_name": "4_ablation_studies",
+        "description": "Tune the hyperparameters of the `RandomForestClassifier` (e.g., `n_estimators`, `max_depth`) using `GridSearchCV` to find the optimal settings and report the final best accuracy."
+      }
+    ]
+  }
+]
