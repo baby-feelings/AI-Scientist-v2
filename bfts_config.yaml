@@ -26,7 +26,7 @@ generate_report: True
 # LLM settings for final report from journal
 report:
   # JSON/汎用タスク
-  model: "ollama/llama3:70b"
+  model: "ollama/gpt-oss:20b"
   temp: 1.0
 
 experiment:
@@ -60,7 +60,7 @@ agent:
   # LLM settings for coding
   code:
     # コード生成タスク
-    model: "ollama/llama3:70b"
+    model: "ollama/gpt-oss:20b"
     # 温度を下げてランダム性を抑制
     temp: 0.2
     max_tokens: 12000
@@ -68,14 +68,14 @@ agent:
   # LLM settings for evaluating program output / tracebacks
   feedback:
     # JSON応答タスク
-    model: "ollama/llama3:70b"
+    model: "ollama/gpt-oss:20b"
     # 温度を下げてJSONパースの安定性を向上
     temp: 0.3
     max_tokens: 8192
 
   vlm_feedback:
     # VLMタスク
-    model: "ollama/llava:latest"
+    model: "ollama/llava:7b"
     temp: 0.5
     max_tokens: null
 
@@ -89,10 +89,10 @@ agent:
 
   summary:
     # JSON/汎用タスク
-    model: "ollama/llama3:70b"
+    model: "ollama/gpt-oss:20b"
     temp: 0.3
 
   select_node:
     # JSON/汎用タスク
-    model: "ollama/llama3:70b"
+    model: "ollama/gpt-oss:20b"
     temp: 0.3
