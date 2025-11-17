@@ -1,6 +1,6 @@
 # agent_manager.py
 
-from typing import List, Optional, Dict, Callable, Any, Tuple
+from typing import List, Optional, Dict, Callable, Any, Tuple, cast
 import pickle
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -662,20 +662,49 @@ Your research idea:\n\n
 
         try:
             # Get response from LLM
-            response = query(
-                system_message=prompt,
-                user_message=None,
-                func_spec=substage_goal_spec,
-                model=self.cfg.agent.feedback.model,
-                temperature=self.cfg.agent.feedback.temp,
-            )
-
-            # Format the response into a structured goal string
-            goal_str = f"""
-            {response['goals']}
-            """
-
-            return goal_str.strip(), response["sub_stage_name"]
+            # ★★★ Ollama/JSON 修正 (START) ★★★
+            is_ollama = self.cfg.agent.feedback.model.startswith("ollama/")
+            if is_ollama:
+                json_schema_str = json.dumps(substage_goal_spec.json_schema, indent=2)
+                prompt["Instructions"] = (
+                    "You MUST respond ONLY with a valid JSON object matching the following schema. "
+                    "Do not include any other text, reasoning, or explanations before or after the JSON object.\n"
+                    f"JSON Schema:\n```json\n{json_schema_str}\n```"
+                )
+                
+                response_str = cast(
+                    str,
+                    query(
+                        system_message=prompt,
+                        user_message=None,
+                        func_spec=None, # <-- func_spec を削除
+                        model=self.cfg.agent.feedback.model,
+                        temperature=self.cfg.agent.feedback.temp,
+                    ),
+                )
+                try:
+                    # 応答からJSONオブジェクト部分を抽出
+                    json_start = response_str.find('{')
+                    json_end = response_str.rfind('}')
+                    if json_start != -1 and json_end != -1:
+                        json_str = response_str[json_start:json_end+1]
+                        response = json.loads(json_str)
+                    else:
+                        raise json.JSONDecodeError("No JSON object found", response_str, 0)
+                except json.JSONDecodeError as json_e:
+                    logger.error(f"Failed to parse JSON from Ollama substage goal gen. Raw: {response_str}. Error: {json_e}")
+                    # 失敗した場合は、フォールバック
+                    response = {"goals": "Fallback: Error parsing JSON", "sub_stage_name": "error_stage"}
+            else:
+                # 元の OpenAI/Function-calling 互換のロジック
+                response = query(
+                    system_message=prompt,
+                    user_message=None,
+                    func_spec=substage_goal_spec, # <-- 元のまま
+                    model=self.cfg.agent.feedback.model,
+                    temperature=self.cfg.agent.feedback.temp,
+                )
+            # ★★★ Ollama/JSON 修正 (END) ★★★
 
         except Exception as e:
             logger.error(f"Error generating sub-stage goals: {e}")
@@ -1068,13 +1097,48 @@ Your research idea:\n\n
         }
 
         try:
-            response = query(
-                system_message=prompt,
-                user_message=None,
-                func_spec=stage_config_spec,
-                model=self.cfg.agent.feedback.model,
-                temperature=self.cfg.agent.feedback.temp,
-            )
+            # ★★★ Ollama/JSON 修正 (START) ★★★
+            is_ollama = self.cfg.agent.feedback.model.startswith("ollama/")
+            if is_ollama:
+                json_schema_str = json.dumps(stage_config_spec["json_schema"], indent=2) # "json_schema" キーを掘り下げる
+                prompt["Instructions"] = (
+                    "You MUST respond ONLY with a valid JSON object matching the following schema. "
+                    "Do not include any other text, reasoning, or explanations before or after the JSON object.\n"
+                    f"JSON Schema:\n```json\n{json_schema_str}\n```"
+                )
+                
+                response_str = cast(
+                    str,
+                    query(
+                        system_message=prompt,
+                        user_message=None,
+                        func_spec=None, # <-- func_spec を削除
+                        model=self.cfg.agent.feedback.model,
+                        temperature=self.cfg.agent.feedback.temp,
+                    ),
+                )
+                try:
+                    # 応答からJSONオブジェクト部分を抽出
+                    json_start = response_str.find('{')
+                    json_end = response_str.rfind('}')
+                    if json_start != -1 and json_end != -1:
+                        json_str = response_str[json_start:json_end+1]
+                        response = json.loads(json_str)
+                    else:
+                        raise json.JSONDecodeError("No JSON object found", response_str, 0)
+                except json.JSONDecodeError as json_e:
+                    logger.error(f"Failed to parse JSON from Ollama _get_response. Raw: {response_str}. Error: {json_e}")
+                    response = {} # フォールバック
+            else:
+                # 元の OpenAI/Function-calling 互換のロジック
+                response = query(
+                    system_message=prompt,
+                    user_message=None,
+                    func_spec=stage_config_spec, # <-- 元のまま
+                    model=self.cfg.agent.feedback.model,
+                    temperature=self.cfg.agent.feedback.temp,
+                )
+            # ★★★ Ollama/JSON 修正 (END) ★★★
             return response
 
         except Exception as e:
