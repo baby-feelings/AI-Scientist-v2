@@ -991,7 +991,7 @@ class MinimalAgent:
             }
 
             try:
-                # --- OLLAMA FIX: START --- (既存の修正を活用)
+                # --- OLLAMA FIX: START ---
                 is_ollama = self.cfg.agent.feedback.model.startswith("ollama/")
                 if is_ollama:
                     json_schema_str = json.dumps(plot_selection_spec.json_schema, indent=2)
@@ -1011,7 +1011,7 @@ class MinimalAgent:
                         ),
                     )
                     try:
-                        # 応答からJSONオブジェクト部分を抽出する
+                        # 応答からJSONオブジェクト部分を抽出
                         json_start = response_str.find('{')
                         json_end = response_str.rfind('}')
                         if json_start != -1 and json_end != -1:
@@ -1027,7 +1027,6 @@ class MinimalAgent:
                         logger.error(f"Failed to parse JSON from Ollama plot selection. Raw: {response_str}")
                         response_select_plots = {} # エラー時は空の辞書
                 else:
-                    # (元の func_spec ロジック)
                     response_select_plots = cast(
                         dict,
                         query(
@@ -1118,8 +1117,8 @@ class MinimalAgent:
                 "Do not include any other text, reasoning, or explanations (like 'The image you've provided...').\n"
                 f"JSON Schema:\n```json\n{json_schema_str}\n```"
             )
-            user_message[0]["text"] += json_instruction
             # ★★★ VLM/JSON 修正 (END) ★★★
+            user_message[0]["text"] += json_instruction
 
             response_str = cast(
                 str,
@@ -1132,7 +1131,8 @@ class MinimalAgent:
                 ),
             )
             try:
-                # 応答からJSONオブジェクト部分を抽出する
+                # ★★★ Ollama/JSON 修正 (START) ★★★
+                # 応答からJSONオブジェクト部分を抽出
                 json_start = response_str.find('{')
                 json_end = response_str.rfind('}')
                 if json_start != -1 and json_end != -1:
@@ -1140,12 +1140,15 @@ class MinimalAgent:
                     response = json.loads(json_str)
                 else:
                     raise json.JSONDecodeError("No JSON object found", response_str, 0)
+                # ★★★ Ollama/JSON 修正 (END) ★★★
             except json.JSONDecodeError:
                 logger.error(f"Failed to parse JSON from VLM Ollama. Raw: {response_str}")
                 response = None # Fallback
-            # ... (元のフォールバックロジック) ...
+
+            if response is None:
+                logger.error(f"Failed to parse JSON from VLM Ollama. Raw: {response_str}")
+                response = {"valid_plots_received": False, "plot_analyses": [], "vlm_feedback_summary": "Failed to parse VLM response."} # フォールバック
         else:
-            # (元の func_spec ロジック)
             response = cast(
                 dict,
                 query(
@@ -1244,10 +1247,19 @@ class MinimalAgent:
                 ),
             )
             try:
-                response = json.loads(response_str)
+                # ★★★ Ollama/JSON 修正 (START) ★★★
+                # 応答からJSONオブジェクト部分を抽出
+                json_start = response_str.find('{')
+                json_end = response_str.rfind('}')
+                if json_start != -1 and json_end != -1:
+                    json_str = response_str[json_start:json_end+1]
+                    response = json.loads(json_str)
+                else:
+                    raise json.JSONDecodeError("No JSON object found", response_str, 0)
+                # ★★★ Ollama/JSON 修正 (END) ★★★
             except json.JSONDecodeError:
-                 logger.error(f"Failed to parse JSON from Ollama node summary. Raw: {response_str}")
-                 response = None # Fallback
+                logger.error(f"Failed to parse JSON from Ollama node summary. Raw: {response_str}")
+                response = None # Fallback
 
             if response is None:
                 logger.error(f"Failed to parse JSON from Ollama node summary. Raw: {response_str}")
@@ -1835,7 +1847,16 @@ class ParallelAgent:
                                 ),
                             )
                             try:
-                                metrics_response = json.loads(response_str)
+                                # ★★★ Ollama/JSON 修正 (START) ★★★
+                                # 応答からJSONオブジェクト部分を抽出
+                                json_start = response_str.find('{')
+                                json_end = response_str.rfind('}')
+                                if json_start != -1 and json_end != -1:
+                                    json_str = response_str[json_start:json_end+1]
+                                    metrics_response = json.loads(json_str)
+                                else:
+                                    raise json.JSONDecodeError("No JSON object found", response_str, 0)
+                                # ★★★ Ollama/JSON 修正 (END) ★★★
                             except json.JSONDecodeError:
                                 logger.error(f"Failed to parse JSON from Ollama metrics parsing. Raw: {response_str}")
                                 metrics_response = None # Fallback
