@@ -15,6 +15,7 @@ import json
 from rich import print
 from .utils.serialize import parse_markdown_to_dict
 from .utils.metric import WorstMetricValue
+from ai_scientist.llm import extract_json_between_markers
 
 
 logger = logging.getLogger(__name__)
@@ -384,12 +385,11 @@ Your research idea:\n\n
                     ),
                 )
                 try:
-                    # 応答からJSONオブジェクト部分を抽出
-                    json_start = response_str.find('{')
-                    json_end = response_str.rfind('}')
-                    if json_start != -1 and json_end != -1:
-                        json_str = response_str[json_start:json_end+1]
-                        evaluation = json.loads(json_str)
+                    # ★★★ extract_json_between_markers を使用 ★★★
+                    evaluation = extract_json_between_markers(response_str)
+                    if evaluation is None:
+                        # マーカーが見つからない場合、JSONとして直接ロードを試みる
+                        evaluation = json.loads(response_str)
                     else:
                         raise json.JSONDecodeError("No JSON object found", response_str, 0)
                 except json.JSONDecodeError as json_e:
@@ -521,12 +521,11 @@ Your research idea:\n\n
                         ),
                     )
                     try:
-                        # 応答からJSONオブジェクト部分を抽出
-                        json_start = response_str.find('{')
-                        json_end = response_str.rfind('}')
-                        if json_start != -1 and json_end != -1:
-                            json_str = response_str[json_start:json_end+1]
-                            evaluation = json.loads(json_str)
+                        # ★★★ extract_json_between_markers を使用 ★★★
+                        evaluation = extract_json_between_markers(response_str)
+                        if evaluation is None:
+                            # マーカーが見つからない場合、JSONとして直接ロードを試みる
+                            evaluation = json.loads(response_str)
                         else:
                             raise json.JSONDecodeError("No JSON object found", response_str, 0)
                     except json.JSONDecodeError as json_e:
@@ -683,12 +682,11 @@ Your research idea:\n\n
                     ),
                 )
                 try:
-                    # 応答からJSONオブジェクト部分を抽出
-                    json_start = response_str.find('{')
-                    json_end = response_str.rfind('}')
-                    if json_start != -1 and json_end != -1:
-                        json_str = response_str[json_start:json_end+1]
-                        response = json.loads(json_str)
+                    # ★★★ extract_json_between_markers を使用 ★★★
+                    evaluation = extract_json_between_markers(response_str)
+                    if evaluation is None:
+                        # マーカーが見つからない場合、JSONとして直接ロードを試みる
+                        evaluation = json.loads(response_str)
                     else:
                         raise json.JSONDecodeError("No JSON object found", response_str, 0)
                 except json.JSONDecodeError as json_e:
@@ -1118,12 +1116,11 @@ Your research idea:\n\n
                     ),
                 )
                 try:
-                    # 応答からJSONオブジェクト部分を抽出
-                    json_start = response_str.find('{')
-                    json_end = response_str.rfind('}')
-                    if json_start != -1 and json_end != -1:
-                        json_str = response_str[json_start:json_end+1]
-                        response = json.loads(json_str)
+                    # ★★★ extract_json_between_markers を使用 ★★★
+                    evaluation = extract_json_between_markers(response_str)
+                    if evaluation is None:
+                        # マーカーが見つからない場合、JSONとして直接ロードを試みる
+                        evaluation = json.loads(response_str)
                     else:
                         raise json.JSONDecodeError("No JSON object found", response_str, 0)
                 except json.JSONDecodeError as json_e:
@@ -1328,12 +1325,11 @@ Your research idea:\n\n
                     ),
                 )
                 try:
-                    # 応答からJSONオブジェクト部分を抽出
-                    json_start = response_str.find('{')
-                    json_end = response_str.rfind('}')
-                    if json_start != -1 and json_end != -1:
-                        json_str = response_str[json_start:json_end+1]
-                        evaluation = json.loads(json_str)
+                    # ★★★ extract_json_between_markers を使用 ★★★
+                    evaluation = extract_json_between_markers(response_str)
+                    if evaluation is None:
+                        # マーカーが見つからない場合、JSONとして直接ロードを試みる
+                        evaluation = json.loads(response_str)
                     else:
                         raise json.JSONDecodeError("No JSON object found", response_str, 0)
                 except json.JSONDecodeError as json_e:

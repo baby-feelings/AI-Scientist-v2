@@ -1011,12 +1011,12 @@ class MinimalAgent:
                         ),
                     )
                     try:
-                        # 応答からJSONオブジェクト部分を抽出
-                        json_start = response_str.find('{')
-                        json_end = response_str.rfind('}')
-                        if json_start != -1 and json_end != -1:
-                            json_str = response_str[json_start:json_end+1]
-                            response_select_plots = json.loads(json_str)
+                        # ★★★ 修正: extract_json_between_markers を使用 ★★★
+                        # マークダウン ```json ... ``` を自動的に処理します
+                        response_select_plots = extract_json_between_markers(response_str)
+                        if response_select_plots is None:
+                            # フォールバック: 辞書としてパースを試みる
+                            response_select_plots = json.loads(response_str)
                         else:
                             raise json.JSONDecodeError("No JSON object found", response_str, 0)
                     except json.JSONDecodeError:
@@ -1131,13 +1131,17 @@ class MinimalAgent:
                 ),
             )
             try:
-                # ★★★ Ollama/JSON 修正 (START) ★★★
-                # 応答からJSONオブジェクト部分を抽出
-                json_start = response_str.find('{')
-                json_end = response_str.rfind('}')
-                if json_start != -1 and json_end != -1:
-                    json_str = response_str[json_start:json_end+1]
-                    response = json.loads(json_str)
+                # ★★★ 修正: extract_json_between_markers を使用 ★★★
+                response = extract_json_between_markers(response_str)
+                if response is None:
+                    # VLMがマークカーなしでJSONを返した場合の対策
+                    # 最低限のクリーニング
+                    clean_str = response_str.strip()
+                    if clean_str.startswith("```json"):
+                        clean_str = clean_str[7:]
+                    if clean_str.endswith("```"):
+                        clean_str = clean_str[:-3]
+                    response = json.loads(clean_str)
                 else:
                     raise json.JSONDecodeError("No JSON object found", response_str, 0)
                 # ★★★ Ollama/JSON 修正 (END) ★★★
@@ -1247,13 +1251,11 @@ class MinimalAgent:
                 ),
             )
             try:
-                # ★★★ Ollama/JSON 修正 (START) ★★★
-                # 応答からJSONオブジェクト部分を抽出
-                json_start = response_str.find('{')
-                json_end = response_str.rfind('}')
-                if json_start != -1 and json_end != -1:
-                    json_str = response_str[json_start:json_end+1]
-                    response = json.loads(json_str)
+                # ★★★ 修正: extract_json_between_markers を使用 ★★★
+                response = extract_json_between_markers(response_str)
+                if response is None:
+                    # フォールバック
+                    response = json.loads(response_str)
                 else:
                     raise json.JSONDecodeError("No JSON object found", response_str, 0)
                 # ★★★ Ollama/JSON 修正 (END) ★★★
@@ -1847,13 +1849,11 @@ class ParallelAgent:
                                 ),
                             )
                             try:
-                                # ★★★ Ollama/JSON 修正 (START) ★★★
-                                # 応答からJSONオブジェクト部分を抽出
-                                json_start = response_str.find('{')
-                                json_end = response_str.rfind('}')
-                                if json_start != -1 and json_end != -1:
-                                    json_str = response_str[json_start:json_end+1]
-                                    metrics_response = json.loads(json_str)
+                                # ★★★ 修正: extract_json_between_markers を使用 ★★★
+                                metrics_response = extract_json_between_markers(response_str)
+                                if metrics_response is None:
+                                    # フォールバック
+                                    metrics_response = json.loads(response_str)
                                 else:
                                     raise json.JSONDecodeError("No JSON object found", response_str, 0)
                                 # ★★★ Ollama/JSON 修正 (END) ★★★
