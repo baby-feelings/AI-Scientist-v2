@@ -13,6 +13,7 @@ import signal
 import sys
 import time
 import traceback
+import platform
 from dataclasses import dataclass
 from multiprocessing import Process, Queue
 from pathlib import Path
@@ -110,9 +111,11 @@ class Interpreter:
 
     def child_proc_setup(self, result_outq: Queue) -> None:
         # disable all warnings (before importing anything)
-        import shutup
-
-        shutup.mute_warnings()
+        try:
+            import shutup
+            shutup.mute_warnings()
+        except ImportError:
+            pass # If shutup is not installed, ignore
 
         for key, value in self.env_vars.items():
             os.environ[key] = value
@@ -130,35 +133,47 @@ class Interpreter:
     def _run_session(
         self, code_inq: Queue, result_outq: Queue, event_outq: Queue
     ) -> None:
-        self.child_proc_setup(result_outq)
+        try:
+            self.child_proc_setup(result_outq)
+        except Exception as e:
+            # Catch initialization errors and send to parent
+            err_msg = f"Interpreter initialization failed: {e}\n{traceback.format_exc()}"
+            event_outq.put(("state:error", err_msg))
+            return
 
         global_scope: dict = {}
         while True:
-            code = code_inq.get()
-            os.chdir(str(self.working_dir))
-            with open(self.agent_file_name, "w") as f:
-                f.write(code)
-
-            event_outq.put(("state:ready",))
             try:
-                exec(compile(code, self.agent_file_name, "exec"), global_scope)
-            except BaseException as e:
-                tb_str, e_cls_name, exc_info, exc_stack = exception_summary(
-                    e,
-                    self.working_dir,
-                    self.agent_file_name,
-                    self.format_tb_ipython,
-                )
-                result_outq.put(tb_str)
-                if e_cls_name == "KeyboardInterrupt":
-                    e_cls_name = "TimeoutError"
+                code = code_inq.get()
+                os.chdir(str(self.working_dir))
+                with open(self.agent_file_name, "w") as f:
+                    f.write(code)
 
-                event_outq.put(("state:finished", e_cls_name, exc_info, exc_stack))
-            else:
-                event_outq.put(("state:finished", None, None, None))
+                event_outq.put(("state:ready",))
+                try:
+                    exec(compile(code, self.agent_file_name, "exec"), global_scope)
+                except BaseException as e:
+                    tb_str, e_cls_name, exc_info, exc_stack = exception_summary(
+                        e,
+                        self.working_dir,
+                        self.agent_file_name,
+                        self.format_tb_ipython,
+                    )
+                    result_outq.put(tb_str)
+                    if e_cls_name == "KeyboardInterrupt":
+                        e_cls_name = "TimeoutError"
 
-            # put EOF marker to indicate that we're done
-            result_outq.put("<|EOF|>")
+                    event_outq.put(("state:finished", e_cls_name, exc_info, exc_stack))
+                else:
+                    event_outq.put(("state:finished", None, None, None))
+
+                # put EOF marker to indicate that we're done
+                result_outq.put("<|EOF|>")
+            except Exception as e:
+                # Should not happen, but good to capture
+                result_outq.put(f"Interpreter loop error: {e}")
+                event_outq.put(("state:finished", "RuntimeError", {}, []))
+                result_outq.put("<|EOF|>")
 
     def create_process(self) -> None:
         # we use three queues to communicate with the child process:
@@ -240,13 +255,20 @@ class Interpreter:
 
         # wait for child to actually start execution (we don't want interrupt child setup)
         try:
-            state = self.event_outq.get(timeout=10)
+            # Increased timeout for Windows process startup
+            state = self.event_outq.get(timeout=30)
         except queue.Empty:
-            msg = "REPL child process failed to start execution"
+            msg = "REPL child process failed to start execution (Timeout 30s)"
             logger.critical(msg)
             while not self.result_outq.empty():
                 logger.error(f"REPL output queue dump: {self.result_outq.get()}")
             raise RuntimeError(msg) from None
+        
+        if state[0] == "state:error":
+            msg = f"REPL child process failed to start: {state[1]}"
+            logger.critical(msg)
+            raise RuntimeError(msg)
+
         assert state[0] == "state:ready", state
         start_time = time.time()
 
@@ -281,7 +303,12 @@ class Interpreter:
                     assert reset_session, "Timeout ocurred in interactive session"
 
                     # send interrupt to child
-                    os.kill(self.process.pid, signal.SIGINT)  # type: ignore
+                    if platform.system() == "Windows":
+                        # Windows doesn't support graceful SIGINT, so we terminate.
+                        self.process.terminate()
+                    else:
+                        os.kill(self.process.pid, signal.SIGINT)  # type: ignore
+                    
                     child_in_overtime = True
                     # terminate if we're overtime by more than a minute
                     if running_time > self.timeout + 60:
