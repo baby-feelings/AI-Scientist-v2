@@ -345,7 +345,7 @@ Your research idea:\n\n
 
     def _check_substage_completion(
         self, current_substage: Stage, journal: Journal
-    ) -> bool:
+    ) -> Tuple[bool, str]:
         """Check if the current sub-stage is complete"""
         best_node = journal.get_best_node(cfg=self.cfg)
         if not best_node:
@@ -364,11 +364,11 @@ Your research idea:\n\n
         """
 
         try:
-            # ★★★ Ollama/JSON 修正 (START) ★★★
             is_ollama = self.cfg.agent.feedback.model.startswith("ollama/")
             if is_ollama:
                 json_schema_str = json.dumps(stage_completion_eval_spec.json_schema, indent=2)
-                eval_prompt["Instructions"] = (
+                eval_prompt += (
+                    "\n\nInstructions:\n"
                     "You MUST respond ONLY with a valid JSON object matching the following schema. "
                     "Do not include any other text, reasoning, or explanations before or after the JSON object.\n"
                     f"JSON Schema:\n```json\n{json_schema_str}\n```"
@@ -379,33 +379,50 @@ Your research idea:\n\n
                     query(
                         system_message=eval_prompt,
                         user_message=None,
-                        func_spec=None, # <-- func_spec を削除
+                        func_spec=None,
                         model=self.cfg.agent.feedback.model,
                         temperature=self.cfg.agent.feedback.temp,
                     ),
                 )
                 try:
-                    # ★★★ extract_json_between_markers を使用 ★★★
                     evaluation = extract_json_between_markers(response_str)
                     if evaluation is None:
-                        # マーカーが見つからない場合、JSONとして直接ロードを試みる
-                        evaluation = json.loads(response_str)
-                    else:
-                        raise json.JSONDecodeError("No JSON object found", response_str, 0)
-                except json.JSONDecodeError as json_e:
+                        # Fallback: try parsing with flexible json load
+                        clean_str = response_str.strip()
+                        if clean_str.startswith("```json"):
+                            clean_str = clean_str[7:]
+                        if clean_str.endswith("```"):
+                            clean_str = clean_str[:-3]
+                        evaluation = json.loads(clean_str.strip())
+                except Exception as json_e:
                     logger.error(f"Failed to parse JSON from Ollama substage completion. Raw: {response_str}. Error: {json_e}")
-                    # 失敗した場合は、ステージ未完了としてフォールバック
                     evaluation = {"is_complete": False, "reasoning": "JSON parse error", "missing_criteria": ["JSON parse error"]}
             else:
-                # 元の OpenAI/Function-calling 互換のロジック
                 evaluation = query(
                     system_message=eval_prompt,
                     user_message=None,
-                    func_spec=stage_completion_eval_spec, # <-- 元のまま
+                    func_spec=stage_completion_eval_spec,
                     model=self.cfg.agent.feedback.model,
                     temperature=self.cfg.agent.feedback.temp,
                 )
-            # ★★★ Ollama/JSON 修正 (END) ★★★
+
+            if evaluation["is_complete"]:
+                logger.info(
+                    f"Stage {current_substage.name} completed: {evaluation['reasoning']}"
+                )
+                print(
+                    f"[green]Stage {current_substage.name} completed: {evaluation['reasoning']}[/green]"
+                )
+                return True, "Found working implementation"
+            else:
+                missing = ", ".join(evaluation["missing_criteria"])
+                logger.info(
+                    f"Stage {current_substage.name} not complete. Missing: {missing}"
+                )
+                print(
+                    f"[yellow]Stage {current_substage.name} not complete. Missing: {missing}[/yellow]"
+                )
+                return False, "Missing criteria: " + missing
         except Exception as e:
             logger.error(
                 f"Error in sub-stage {current_substage.name} completion evaluation: {e}"
@@ -426,9 +443,9 @@ Your research idea:\n\n
             return True, "Reached max iterations"
 
         print(f"[green]Stage {current_substage.name} not completed[/green]")
-        return False
+        return False, "Substage not completed"
 
-    def _check_stage_completion(self, stage: Stage) -> bool:
+    def _check_stage_completion(self, stage: Stage) -> Tuple[bool, str]:
         """Check if current stage is complete based on criteria"""
         journal = self.journals[stage.name]
         # Terminate if max iterations reached
@@ -490,21 +507,34 @@ Your research idea:\n\n
             Provide a detailed evaluation of completion status.
             """
 
+            # Define spec and prompt before Ollama check
+            feedback_spec = FunctionSpec(
+                name="evaluate_stage_completion",
+                description="Evaluate if the stage is complete",
+                json_schema={
+                    "type": "object",
+                    "properties": {
+                        "is_successful": {
+                            "type": "boolean",
+                            "description": "Whether the stage is considered successfully completed",
+                        },
+                        "feedback": {
+                            "type": "string",
+                            "description": "Reasoning for the decision",
+                        },
+                    },
+                    "required": ["is_successful", "feedback"],
+                },
+            )
+
             try:
-                # ★★★ Ollama/JSON 修正 (START) ★★★
                 is_ollama = self.cfg.agent.feedback.model.startswith("ollama/")
                 if is_ollama:
-                    # feedback_spec (339行目) がこのスコープにないので、即席でスキーマを定義
-                    feedback_schema = {
-                        "type": "object",
-                        "properties": {
-                            "is_successful": {"type": "boolean"},
-                            "feedback": {"type": "string"},
-                        },
-                        "required": ["is_successful", "feedback"],
-                    }
+                    # Use local schema definition since feedback_spec might be dynamic or different
+                    feedback_schema = feedback_spec.json_schema
                     json_schema_str = json.dumps(feedback_schema, indent=2)
-                    eval_prompt["Instructions"] = (
+                    eval_prompt += (
+                        "\n\nInstructions:\n"
                         "You MUST respond ONLY with a valid JSON object matching the following schema. "
                         "Do not include any other text, reasoning, or explanations before or after the JSON object.\n"
                         f"JSON Schema:\n```json\n{json_schema_str}\n```"
@@ -515,33 +545,42 @@ Your research idea:\n\n
                         query(
                             system_message=eval_prompt,
                             user_message=None,
-                            func_spec=None, # <-- func_spec を削除
+                            func_spec=None,
                             model=self.cfg.agent.feedback.model,
                             temperature=self.cfg.agent.feedback.temp,
                         ),
                     )
                     try:
-                        # ★★★ extract_json_between_markers を使用 ★★★
                         evaluation = extract_json_between_markers(response_str)
                         if evaluation is None:
-                            # マーカーが見つからない場合、JSONとして直接ロードを試みる
-                            evaluation = json.loads(response_str)
-                        else:
-                            raise json.JSONDecodeError("No JSON object found", response_str, 0)
-                    except json.JSONDecodeError as json_e:
+                            import json
+                            clean_str = response_str.strip()
+                            if clean_str.startswith("```json"):
+                                clean_str = clean_str[7:]
+                            if clean_str.endswith("```"):
+                                clean_str = clean_str[:-3]
+                            evaluation = json.loads(clean_str.strip())
+                        response = evaluation
+                    except Exception as json_e:
                         logger.error(f"Failed to parse JSON from Ollama stage 2 completion. Raw: {response_str}. Error: {json_e}")
-                        # 失敗した場合は、ステージ未完了としてフォールバック
-                        evaluation = {"is_complete": False, "reasoning": "JSON parse error", "missing_criteria": ["JSON parse error"]}
+                        response = {"is_successful": False, "feedback": "Stage failed to complete (JSON parse error)."}
                 else:
-                    # 元の OpenAI/Function-calling 互換のロジック
-                    evaluation = query(
-                        system_message=eval_prompt,
-                        user_message=None,
-                        func_spec=stage_completion_eval_spec, # <-- 元のまま
-                        model=self.cfg.agent.feedback.model,
-                        temperature=self.cfg.agent.feedback.temp,
+                    response = cast(
+                        dict,
+                        query(
+                            system_message=eval_prompt,
+                            user_message=None,
+                            func_spec=feedback_spec,
+                            model=self.cfg.agent.feedback.model,
+                            temperature=self.cfg.agent.feedback.temp,
+                        ),
                     )
-                # ★★★ Ollama/JSON 修正 (END) ★★★
+
+                if not response["is_successful"]:
+                    return False, response["feedback"]
+                
+                return True, response["feedback"]
+
             except Exception as e:
                 logger.error(f"Error in stage 2 completion evaluation: {e}")
                 return False, "Error in stage 2 completion evaluation"
@@ -555,8 +594,6 @@ Your research idea:\n\n
                     False,
                     "No improvement found from the base node (which is the best node from the previous stage)",
                 )
-            # Check if there are enough research results
-            # Or, we could just let the agent run until max iterations is reached
             # Check if the experiment execution time is too short
             exec_time_minutes = best_node.exec_time / 60
             print(f"[cyan]exec_time_minutes: {exec_time_minutes}[/cyan]")
@@ -569,7 +606,7 @@ Your research idea:\n\n
                         "We have up to 60 minutes available for each experiment."
                         "Make sure to scale up the experiment "
                         "by increasing the number of epochs, using a larger model, or working with bigger datasets."
-                        "Given that the current execution time is {exec_time_minutes:.2f} minutes, think about how changing the number of epochs to run, or using a larger model, or working with bigger datasets to run"
+                        f"Given that the current execution time is {exec_time_minutes:.2f} minutes, think about how changing the number of epochs to run, or using a larger model, or working with bigger datasets to run"
                         "will affect the execution time, and make sure to scale up the experiment accordingly."
                     )
                     print(f"[cyan]exec_time_feedback: {exec_time_feedback}[/cyan]")
@@ -599,15 +636,7 @@ Your research idea:\n\n
         return None
 
     def _generate_substage_goal(self, main_stage_goal: str, journal: Journal) -> str:
-        """Generate the next sub-stage goal based on what has been done so far.
-
-        Args:
-            main_stage_goal: The overall goal for the current main stage
-            journal: Journal containing the results and progress so far
-
-        Returns:
-            str: Specific goals for the next sub-stage
-        """
+        """Generate the next sub-stage goal based on what has been done so far."""
         # Gather current progress metrics
         metrics = self._gather_stage_metrics(journal)
         issues = self._identify_issues(journal)
@@ -661,11 +690,11 @@ Your research idea:\n\n
 
         try:
             # Get response from LLM
-            # ★★★ Ollama/JSON 修正 (START) ★★★
             is_ollama = self.cfg.agent.feedback.model.startswith("ollama/")
             if is_ollama:
                 json_schema_str = json.dumps(substage_goal_spec.json_schema, indent=2)
-                prompt["Instructions"] = (
+                prompt += (
+                    "\n\nInstructions:\n"
                     "You MUST respond ONLY with a valid JSON object matching the following schema. "
                     "Do not include any other text, reasoning, or explanations before or after the JSON object.\n"
                     f"JSON Schema:\n```json\n{json_schema_str}\n```"
@@ -676,33 +705,39 @@ Your research idea:\n\n
                     query(
                         system_message=prompt,
                         user_message=None,
-                        func_spec=None, # <-- func_spec を削除
+                        func_spec=None,
                         model=self.cfg.agent.feedback.model,
                         temperature=self.cfg.agent.feedback.temp,
                     ),
                 )
                 try:
-                    # ★★★ extract_json_between_markers を使用 ★★★
-                    evaluation = extract_json_between_markers(response_str)
-                    if evaluation is None:
-                        # マーカーが見つからない場合、JSONとして直接ロードを試みる
-                        evaluation = json.loads(response_str)
-                    else:
-                        raise json.JSONDecodeError("No JSON object found", response_str, 0)
-                except json.JSONDecodeError as json_e:
+                    response = extract_json_between_markers(response_str)
+                    if response is None:
+                        import json
+                        clean_str = response_str.strip()
+                        if clean_str.startswith("```json"):
+                            clean_str = clean_str[7:]
+                        if clean_str.endswith("```"):
+                            clean_str = clean_str[:-3]
+                        response = json.loads(clean_str.strip())
+                except Exception as json_e:
                     logger.error(f"Failed to parse JSON from Ollama substage goal gen. Raw: {response_str}. Error: {json_e}")
-                    # 失敗した場合は、フォールバック
                     response = {"goals": "Fallback: Error parsing JSON", "sub_stage_name": "error_stage"}
             else:
-                # 元の OpenAI/Function-calling 互換のロジック
                 response = query(
                     system_message=prompt,
                     user_message=None,
-                    func_spec=substage_goal_spec, # <-- 元のまま
+                    func_spec=substage_goal_spec,
                     model=self.cfg.agent.feedback.model,
                     temperature=self.cfg.agent.feedback.temp,
                 )
-            # ★★★ Ollama/JSON 修正 (END) ★★★
+
+            # Format the response into a structured goal string
+            goal_str = f"""
+            {response['goals']}
+            """
+
+            return goal_str.strip(), response["sub_stage_name"]
 
         except Exception as e:
             logger.error(f"Error generating sub-stage goals: {e}")
@@ -710,14 +745,12 @@ Your research idea:\n\n
             return f"""
             Sub-stage Goals:
             Continue progress on main stage objectives while addressing current issues.
-            """
+            """, "fallback"
 
     def _create_next_substage(
         self, current_substage: Stage, journal: Journal, substage_feedback: str
     ) -> Optional[Stage]:
-        """Create the next sub-stage. Ask LLM to come up with the next sub-stage name and goals
-        based on what has been done so far.
-        """
+        """Create the next sub-stage."""
         main_stage_num, main_stage_name, sub_stage_num, _ = self.parse_stage_names(
             current_substage.name
         )
@@ -962,14 +995,14 @@ Your research idea:\n\n
                 / "logs"
                 / run_name
                 / "notes"
-                / f"stage_{stage_number-1}_to_{stage_number}"
+                / f"stage_{previous_stages[-1].stage_number-1}_to_{previous_stages[-1].stage_number}"
             )
             notes_dir.mkdir(parents=True, exist_ok=True)
 
             analysis_data = {
                 "stage_transition": {
-                    "from_stage": stage_number - 1,
-                    "to_stage": stage_number,
+                    "from_stage": previous_stages[-1].stage_number - 1,
+                    "to_stage": previous_stages[-1].stage_number,
                     "is_initial_stage": is_initial_stage,  # Add flag for initial stage
                     "metrics_summary": metrics_summary,
                     "node_summaries": previous_results["metrics"].get(
@@ -1053,19 +1086,7 @@ Your research idea:\n\n
             json.dump(completion_data, f, indent=2)
 
     def _get_response(self, prompt: str) -> Dict[str, Any]:
-        """Get structured response from LLM for stage configuration.
-
-        Args:
-            prompt: The analysis prompt to send to the LLM
-
-        Returns:
-            Dictionary containing stage configuration with keys:
-            - name: str
-            - description: str
-            - goals: List[str]
-            - max_iterations: int
-            - success_metric_threshold: Optional[float]
-        """
+        """Get structured response from LLM for stage configuration."""
         stage_config_spec = {
             "name": "generate_stage_config",
             "json_schema": {
@@ -1095,11 +1116,11 @@ Your research idea:\n\n
         }
 
         try:
-            # ★★★ Ollama/JSON 修正 (START) ★★★
             is_ollama = self.cfg.agent.feedback.model.startswith("ollama/")
             if is_ollama:
-                json_schema_str = json.dumps(stage_config_spec["json_schema"], indent=2) # "json_schema" キーを掘り下げる
-                prompt["Instructions"] = (
+                json_schema_str = json.dumps(stage_config_spec["json_schema"], indent=2)
+                prompt += (
+                    "\n\nInstructions:\n"
                     "You MUST respond ONLY with a valid JSON object matching the following schema. "
                     "Do not include any other text, reasoning, or explanations before or after the JSON object.\n"
                     f"JSON Schema:\n```json\n{json_schema_str}\n```"
@@ -1110,32 +1131,32 @@ Your research idea:\n\n
                     query(
                         system_message=prompt,
                         user_message=None,
-                        func_spec=None, # <-- func_spec を削除
+                        func_spec=None,
                         model=self.cfg.agent.feedback.model,
                         temperature=self.cfg.agent.feedback.temp,
                     ),
                 )
                 try:
-                    # ★★★ extract_json_between_markers を使用 ★★★
-                    evaluation = extract_json_between_markers(response_str)
-                    if evaluation is None:
-                        # マーカーが見つからない場合、JSONとして直接ロードを試みる
-                        evaluation = json.loads(response_str)
-                    else:
-                        raise json.JSONDecodeError("No JSON object found", response_str, 0)
-                except json.JSONDecodeError as json_e:
+                    response = extract_json_between_markers(response_str)
+                    if response is None:
+                        import json
+                        clean_str = response_str.strip()
+                        if clean_str.startswith("```json"):
+                            clean_str = clean_str[7:]
+                        if clean_str.endswith("```"):
+                            clean_str = clean_str[:-3]
+                        response = json.loads(clean_str.strip())
+                except Exception as json_e:
                     logger.error(f"Failed to parse JSON from Ollama _get_response. Raw: {response_str}. Error: {json_e}")
-                    response = {} # フォールバック
+                    response = {}
             else:
-                # 元の OpenAI/Function-calling 互換のロジック
                 response = query(
                     system_message=prompt,
                     user_message=None,
-                    func_spec=stage_config_spec, # <-- 元のまま
+                    func_spec=stage_config_spec,
                     model=self.cfg.agent.feedback.model,
                     temperature=self.cfg.agent.feedback.temp,
                 )
-            # ★★★ Ollama/JSON 修正 (END) ★★★
             return response
 
         except Exception as e:
@@ -1304,11 +1325,11 @@ Your research idea:\n\n
         """
 
         try:
-            # ★★★ Ollama/JSON 修正 (START) ★★★
             is_ollama = self.cfg.agent.feedback.model.startswith("ollama/")
             if is_ollama:
                 json_schema_str = json.dumps(stage_progress_eval_spec.json_schema, indent=2)
-                eval_prompt["Instructions"] = (
+                eval_prompt += (
+                    "\n\nInstructions:\n"
                     "You MUST respond ONLY with a valid JSON object matching the following schema. "
                     "Do not include any other text, reasoning, or explanations before or after the JSON object.\n"
                     f"JSON Schema:\n```json\n{json_schema_str}\n```"
@@ -1319,22 +1340,23 @@ Your research idea:\n\n
                     query(
                         system_message=eval_prompt,
                         user_message=None,
-                        func_spec=None, # <-- func_spec を削除
+                        func_spec=None,
                         model=self.cfg.agent.feedback.model,
                         temperature=self.cfg.agent.feedback.temp,
                     ),
                 )
                 try:
-                    # ★★★ extract_json_between_markers を使用 ★★★
                     evaluation = extract_json_between_markers(response_str)
                     if evaluation is None:
-                        # マーカーが見つからない場合、JSONとして直接ロードを試みる
-                        evaluation = json.loads(response_str)
-                    else:
-                        raise json.JSONDecodeError("No JSON object found", response_str, 0)
-                except json.JSONDecodeError as json_e:
+                        import json
+                        clean_str = response_str.strip()
+                        if clean_str.startswith("```json"):
+                            clean_str = clean_str[7:]
+                        if clean_str.endswith("```"):
+                            clean_str = clean_str[:-3]
+                        evaluation = json.loads(clean_str.strip())
+                except Exception as json_e:
                     logger.error(f"Failed to parse JSON from Ollama stage progress eval. Raw: {response_str}. Error: {json_e}")
-                    # 失敗した場合は、ステージ未完了としてフォールバック
                     evaluation = {
                         "ready_for_next_stage": False,
                         "reasoning": "Error in evaluation process (JSON parse error).",
@@ -1342,15 +1364,20 @@ Your research idea:\n\n
                         "suggested_focus": "Maintain current direction",
                     }
             else:
-                # 元の OpenAI/Function-calling 互換のロジック
                 evaluation = query(
                     system_message=eval_prompt,
                     user_message=None,
-                    func_spec=stage_progress_eval_spec, # <-- 元のまま
+                    func_spec=stage_progress_eval_spec,
                     model=self.cfg.agent.feedback.model,
                     temperature=self.cfg.agent.feedback.temp,
                 )
-            # ★★★ Ollama/JSON 修正 (END) ★★★
+
+            # Log the evaluation for transparency
+            logger.info(
+                f"Stage progression evaluation:\n{json.dumps(evaluation, indent=2)}"
+            )
+
+            return evaluation
 
         except Exception as e:
             logger.error(f"Error in stage progression evaluation: {e}")

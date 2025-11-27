@@ -55,15 +55,31 @@ def _parse_keyword_prefix_response(
         name = None
         description = None
 
-        for line in lines:
-            if line.startswith(keyword_prefix1):
-                name = line.replace(keyword_prefix1, "").strip()
-            elif line.startswith(keyword_prefix2):
-                description = line.replace(keyword_prefix2, "").strip()
-                # Combine any following lines that don't start with a marker
+        for i, line in enumerate(lines):
+            # ★★★ 修正: マークダウン(*, #, `)を削除して柔軟にマッチングさせる ★★★
+            clean_line = line.replace("*", "").replace("#", "").replace("`", "").strip()
+            
+            # プレフィックス側も同様にクリーニング (大文字小文字の違いも吸収するため lower() は使わないが、記号は消す)
+            clean_prefix1 = keyword_prefix1.replace("*", "").replace("#", "").replace("`", "").strip()
+            clean_prefix2 = keyword_prefix2.replace("*", "").replace("#", "").replace("`", "").strip()
+
+            if clean_line.startswith(clean_prefix1):
+                # プレフィックスを除去して値を取得
+                name = clean_line[len(clean_prefix1):].strip()
+                # もし値の先頭が ":" で始まっていたら（スペース等の関係で残った場合）、それも削除
+                if name.startswith(":"):
+                    name = name[1:].strip()
+
+            elif clean_line.startswith(clean_prefix2):
+                description = clean_line[len(clean_prefix2):].strip()
+                if description.startswith(":"):
+                    description = description[1:].strip()
+                
+                # 次の行以降も説明文として結合する (次のキーワードが出てくるまで)
                 desc_lines = []
-                for next_line in lines[lines.index(line) + 1 :]:
-                    if not next_line.startswith((keyword_prefix1, keyword_prefix2)):
+                for next_line in lines[i + 1 :]:
+                    next_clean = next_line.replace("*", "").replace("#", "").replace("`", "").strip()
+                    if not next_clean.startswith((clean_prefix1, clean_prefix2)):
                         desc_lines.append(next_line)
                     else:
                         break
@@ -748,7 +764,11 @@ class MinimalAgent:
             
             # 返ってきたJSON文字列をパースする
             try:
-                response = json.loads(response_str)
+                # ★★★ 修正: extract_json_between_markers を使用 ★★★
+                response = extract_json_between_markers(response_str)
+                if response is None:
+                    # フォールバック: そのままロードを試みる
+                    response = json.loads(response_str)
             except json.JSONDecodeError:
                 logger.error(f"Failed to parse JSON from Ollama response. Raw: {response_str}")
                 response = None # Fallback
@@ -1852,11 +1872,8 @@ class ParallelAgent:
                                 # ★★★ 修正: extract_json_between_markers を使用 ★★★
                                 metrics_response = extract_json_between_markers(response_str)
                                 if metrics_response is None:
-                                    # フォールバック
+                                    # フォールバック: そのままロードを試みる
                                     metrics_response = json.loads(response_str)
-                                else:
-                                    raise json.JSONDecodeError("No JSON object found", response_str, 0)
-                                # ★★★ Ollama/JSON 修正 (END) ★★★
                             except json.JSONDecodeError:
                                 logger.error(f"Failed to parse JSON from Ollama metrics parsing. Raw: {response_str}")
                                 metrics_response = None # Fallback
