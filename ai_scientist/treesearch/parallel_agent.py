@@ -333,6 +333,18 @@ class MinimalAgent:
             "  - Always pay extra attention to the input to the model being properly normalized",
             "  - This is extremely important because the input to the model's forward pass directly affects the output, and the loss function is computed based on the output",
         ]
+
+        # ★★★ 修正: 使用ライブラリの制限を厳格に追加 ★★★
+        impl_guideline.extend([
+            "CRITICAL LIBRARY CONSTRAINTS:",
+            "  - You MUST use PyTorch (torch) or scikit-learn (sklearn) for machine learning tasks.",
+            "  - DO NOT use TensorFlow, Keras, or JAX. They are NOT installed.",
+            "  - Ensure ALL used modules (e.g., 'from PIL import Image, ImageDraw') are explicitly imported at the top.",
+            "  - Do NOT assume common modules like 'os', 'numpy', or 'matplotlib' are pre-imported."
+        ])
+        # ★★★ 修正ここまで ★★★
+
+
         if hasattr(self.cfg.experiment, "num_syn_datasets"):
             num_syn_datasets = self.cfg.experiment.num_syn_datasets
             if num_syn_datasets > 1:
